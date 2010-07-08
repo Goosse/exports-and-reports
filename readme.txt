@@ -18,7 +18,7 @@ Define custom exports / reports for users by creating each export / report and d
 
 All you do is install the plugin, create your Groups, create your Reports, and hand it off to your clients. Exportable reports in CSV, TAB, XML, and JSON formats.
 
-Coming soon... Pods CMS Framework integration,
+Coming soon... Pods CMS Framework integration, Daily Export Cleanup via wp_cron, Role restriction for Groups / Reports, and Date Filtering
 
 == Frequently Asked Questions ==
 
@@ -78,6 +78,7 @@ Scott Kingsley Clark from SKC Development -- Scott specializes in WordPress and 
 == Roadmap ==
 
 = 0.3 =
+* Daily Export Cleanup via wp_cron
 * Pods CMS Framework integration
 * Limit which User Roles have access to a Group or Report
 * Ability to clear entire export directory
