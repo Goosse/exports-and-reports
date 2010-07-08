@@ -90,7 +90,7 @@ function exports_reports_menu ()
                 add_submenu_page('exports-reports', $group->name, $group->name, $has_full_access ? 'read' : 'exports_reports_view', 'exports-reports-group-'.$group->id, 'exports_reports_view');
         }
     }
-    add_submenu_page('exports-reports', 'Settings', 'Settings', $has_full_access ? 'read' : 'exports_reports_settings', 'exports-reports-settings', 'exports_reports_settings');
+    //add_submenu_page('exports-reports', 'Settings', 'Settings', $has_full_access ? 'read' : 'exports_reports_settings', 'exports-reports-settings', 'exports_reports_settings');
 }
 function exports_reports_get_capabilities ($caps)
 {
