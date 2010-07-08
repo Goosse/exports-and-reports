@@ -187,8 +187,8 @@ function exports_reports_report_field ($column,$attributes,$obj)
 ?>
 <style type="text/css">
     .field_data { overflow:visible; }
-    .field_data td div { width:160px; }
-    .field_data td div.dragme {background:url(<?php echo EXPORTS_REPORTS_URL; ?>/assets/icons/move.png)!important; width:16px; height:16px; margin-right:8px; cursor:pointer; margin:auto auto; }
+    .field_data .sortable td div { width:160px; }
+    .field_data .sortable td div.dragme {background:url(<?php echo EXPORTS_REPORTS_URL; ?>/assets/icons/move.png)!important; width:16px; height:16px; margin-right:8px; cursor:pointer; margin:auto auto; }
 </style>
 <div class="field_data">
     <p><input type="button" class="button" value=" Add Field " onclick="field_add_row();" /></p>
@@ -197,17 +197,22 @@ function exports_reports_report_field ($column,$attributes,$obj)
 <?php
     if(is_array($field_data)&&!empty($field_data))
     {
+        $count = 0;
         foreach($field_data as $field)
         {
 ?>
             <tr>
                 <td><div class="dragme"></div></td>
-                <td><div>Field Name</div> <input type="text" name="field_name[]" value="<?php echo $field['name']; ?>" class="medium-text" /></td>
-                <td><div>Label (optional)</div> <input type="text" name="field_label[]" value="<?php echo $field['label']; ?>" class="medium-text" /></td>
-                <td><div>Display Function (optional)</div> <input type="text" name="field_custom_display[]" value="<?php echo $field['custom_display']; ?>" class="medium-text" /></td>
-                <td><div>Data Type</div><select name="field_type[]"><option value="text"<?php echo ($field['type']=='text'?' SELECTED':''); ?>>Text</option><option value="bool"<?php echo ($field['type']=='bool'?' SELECTED':''); ?>>Boolean (Checkbox)</option><option value="date"<?php echo ($field['type']=='date'?' SELECTED':''); ?>>Date</option></select></td><td>[<a href="#" onclick="field_remove_row(this);">remove</a>]</td>
+                <td><div>Field Name</div> <input type="text" name="field_name[<?php echo $count; ?>]" value="<?php echo $field['name']; ?>" class="medium-text" /><br /><br />
+                    <div>Label (optional)</div> <input type="text" name="field_label[<?php echo $count; ?>]" value="<?php echo $field['label']; ?>" class="medium-text" /></td>
+                <td><div>Hide from Report</div> Yes <input type="radio" name="field_hide_report[<?php echo $count; ?>]" value="1" class="medium-text"<?php echo ($field['hide_report']==1?' CHECKED':''); ?> />&nbsp;&nbsp; No<input type="radio" name="field_hide_report[<?php echo $count; ?>]" value="0" class="medium-text"<?php echo ($field['hide_report']!=1?' CHECKED':''); ?> /><br /><br />
+                    <div>Hide from Export</div> Yes <input type="radio" name="field_hide_export[<?php echo $count; ?>]" value="1" class="medium-text"<?php echo ($field['hide_export']==1?' CHECKED':''); ?> />&nbsp;&nbsp; No<input type="radio" name="field_hide_export[<?php echo $count; ?>]" value="0" class="medium-text"<?php echo ($field['hide_export']!=1?' CHECKED':''); ?> /></td>
+                <td><div>Data Type</div><select name="field_type[<?php echo $count; ?>]"><option value="text"<?php echo ($field['type']=='text'?' SELECTED':''); ?>>Text</option><option value="bool"<?php echo ($field['type']=='bool'?' SELECTED':''); ?>>Boolean (Checkbox)</option><option value="date"<?php echo ($field['type']=='date'?' SELECTED':''); ?>>Date</option></select><br /><br />
+                    <div>Display Function (optional)</div> <input type="text" name="field_custom_display[<?php echo $count; ?>]" value="<?php echo $field['custom_display']; ?>" class="medium-text" /></td>
+                <td>[<a href="#" onclick="field_remove_row(this);">remove</a>]</td>
             </tr>
 <?php
+            $count++;
         }
     }
     else
@@ -215,10 +220,13 @@ function exports_reports_report_field ($column,$attributes,$obj)
 ?>
             <tr>
                 <td><div class="dragme"></div></td>
-                <td><div>Field Name</div> <input type="text" name="field_name[]" value="" class="medium-text" /></td>
-                <td><div>Label (optional)</div> <input type="text" name="field_label[]" value="" class="medium-text" /></td>
-                <td><div>Display Function (optional)</div> <input type="text" name="field_custom_display[]" value="" class="medium-text" /></td>
-                <td><div>Data Type</div><select name="field_type[]"><option value="text">Text</option><option value="bool">Boolean (Checkbox)</option><option value="date">Date</option></select></td><td>[<a href="#" onclick="field_remove_row(this);">remove</a>]</td>
+                <td><div>Field Name</div> <input type="text" name="field_name[0]" value="" class="medium-text" /><br /><br />
+                    <div>Label (optional)</div> <input type="text" name="field_label[0]" value="" class="medium-text" /></td>
+                <td><div>Hide from Report</div> Yes <input type="radio" name="field_hide_report0]" value="1" class="medium-text" />&nbsp;&nbsp; No<input type="radio" name="field_hide_report[0]" value="0" class="medium-text" CHECKED /><br /><br />
+                    <div>Hide from Export</div> Yes <input type="radio" name="field_hide_export[0]" value="1" class="medium-text" />&nbsp;&nbsp; No<input type="radio" name="field_hide_export[0]" value="0" class="medium-text" CHECKED /></td>
+                <td><div>Data Type</div><select name="field_type[0]"><option value="text">Text</option><option value="bool">Boolean (Checkbox)</option><option value="date">Date</option></select><br /><br />
+                    <div>Display Function (optional)</div> <input type="text" name="field_custom_display[0]" value="" class="medium-text" /></td>
+                <td>[<a href="#" onclick="field_remove_row(this);">remove</a>]</td>
             </tr>
 <?php
     }
@@ -237,7 +245,8 @@ function exports_reports_report_field ($column,$attributes,$obj)
     }
     function field_add_row ()
     {
-        var row = '<tr><td><div class="dragme"></div></td><td><div>Field Name</div> <input type="text" name="field_name[]" value="" class="medium-text" /></td><td><div>Label (optional)</div> <input type="text" name="field_label[]" value="" class="medium-text" /></td><td><div>Display Function (optional)</div> <input type="text" name="field_custom_display[]" value="" class="medium-text" /></td><td><div>Data Type</div><select name="field_type[]"><option value="text">Text</option><option value="bool">Boolean (Checkbox)</option><option value="date">Date</option></select></td><td>[<a href="#" onclick="field_remove_row(this);">remove</a>]</td></tr>';
+        var field_count = jQuery('.field_data tbody.sortable tr').length+1;
+        var row = '<tr><td><div class="dragme"></div></td><td><div>Field Name</div> <input type="text" name="field_name['+field_count+']" value="" class="medium-text" /><br /><br /><div>Label (optional)</div> <input type="text" name="field_label['+field_count+']" value="" class="medium-text" /></td><td><div>Hide from Report</div> Yes <input type="radio" name="field_hide_report0]" value="1" class="medium-text" />&nbsp;&nbsp; No<input type="radio" name="field_hide_report['+field_count+']" value="0" class="medium-text" CHECKED /><br /><br /><div>Hide from Export</div> Yes <input type="radio" name="field_hide_export['+field_count+']" value="1" class="medium-text" />&nbsp;&nbsp; No<input type="radio" name="field_hide_export['+field_count+']" value="0" class="medium-text" CHECKED /></td><td><div>Data Type</div><select name="field_type['+field_count+']"><option value="text">Text</option><option value="bool">Boolean (Checkbox)</option><option value="date">Date</option></select><br /><br /><div>Display Function (optional)</div> <input type="text" name="field_custom_display['+field_count+']" value="" class="medium-text" /></td><td>[<a href="#" onclick="field_remove_row(this);">remove</a>]</td></tr>';
         jQuery('.field_data table').append(row);
     }
     jQuery('table.widefat tbody tr:even').addClass('alternate');
@@ -256,7 +265,7 @@ function exports_reports_report_field_save ($value,$column,$attributes,$obj)
         {
             if(empty($field))
                 continue;
-            $value[] = array('name'=>$field,'label'=>$_POST['field_label'][$key],'custom_display'=>$_POST['field_custom_display'][$key],'type'=>$_POST['field_type'][$key]);
+            $value[] = array('name'=>$field,'label'=>$_POST['field_label'][$key],'hide_report'=>$_POST['field_hide_report'][$key],'hide_export'=>$_POST['field_hide_export'][$key],'custom_display'=>$_POST['field_custom_display'][$key],'type'=>$_POST['field_type'][$key]);
         }
     }
     return json_encode($value);
@@ -267,14 +276,10 @@ function exports_reports_view ()
     $group_id = str_replace('exports-reports-group-','',$_GET['page']);
     $group = $wpdb->get_results('SELECT id,name FROM '.EXPORTS_REPORTS_TBL.'groups WHERE disabled=0 AND id='.$group_id);
     if(empty($group))
-    {
         return false;
-    }
     $reports = $wpdb->get_results('SELECT * FROM '.EXPORTS_REPORTS_TBL.'reports WHERE `group`='.$group_id);
     if(empty($reports))
-    {
         return false;
-    }
     $selectable_reports = array();
     $current_report = false;
     foreach($reports as $report)
@@ -284,9 +289,7 @@ function exports_reports_view ()
         $selectable_reports[$report->id] = array('name'=>$report->name,'sql_query'=>$report->sql_query,'export'=>($report->disable_export==0?true:false),'field_data'=>$report->field_data);
     }
     if(isset($_GET['report'])&&isset($selectable_reports[$_GET['report']]))
-    {
         $current_report = $_GET['report'];
-    }
     require_once EXPORTS_REPORTS_DIR.'/classes/Admin.class.php';
     $options = array('css'=>EXPORTS_REPORTS_URL.'/assets/admin.css','readonly'=>true,'export'=>$selectable_reports[$current_report]['export'],'search'=>(strlen($selectable_reports[$current_report]['field_data'])>0?true:false),'sql'=>$selectable_reports[$current_report]['sql_query'],'item'=>$selectable_reports[$current_report]['name'],'items'=>$selectable_reports[$current_report]['name'],'icon'=>EXPORTS_REPORTS_URL.'/assets/icons/32.png','heading'=>array('manage'=>'View Report:'));
     $field_data = @json_decode($selectable_reports[$current_report]['field_data'],true);
@@ -297,17 +300,15 @@ function exports_reports_view ()
         {
             $options['columns'][$field['name']] = array();
             if(0<strlen($field['label']))
-            {
                 $options['columns'][$field['name']]['label'] = $field['label'];
-            }
             if(0<strlen($field['custom_display']))
-            {
                 $options['columns'][$field['name']]['custom_display'] = $field['custom_display'];
-            }
             if(0<strlen($field['type']))
-            {
                 $options['columns'][$field['name']]['type'] = $field['type'];
-            }
+            if(1==$field['hide_report'])
+                $options['columns'][$field['name']]['display'] = false;
+            if(1==$field['hide_export'])
+                $options['columns'][$field['name']]['export'] = false;
         }
     }
     $admin = new WP_UI_Admin($options);
@@ -386,6 +387,7 @@ function exports_reports_about ()
                     <dt>0.3</dt>
                     <dd>
                         <ul>
+                            <li>Daily Export Cleanup via wp_cron</li>
                             <li>Pods CMS Framework integration</li>
                             <li>Limit which User Roles have access to a Group or Report</li>
                             <li>Ability to clear entire export directory</li>
