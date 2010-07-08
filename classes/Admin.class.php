@@ -290,19 +290,21 @@ class WP_UI_Admin
         if(!empty($columns))
         {
             // Available Attributes
-            // type = date (data validation as datetime)
-                // date_update = use current timestamp when saving (even if readonly, if type=date)
-            // type = text / other (single line text box)
-            // type = desc (textarea)
-            // type = number (data validation as int float)
-            // type = decimal (data validation as decimal)
-            // type = password (single line password box)
-            // type = bool (single line password box)
-            // type = related (select box)
-                // related = table to relate to (if type=related)
-                // related_field = field name on table to show (if type=related) - default "name"
-                // related_multiple = true (ability to select multiple values if type=related)
-                // related_sql = custom where / order by SQL (if type=related)
+            // type = field type
+                // type = date (data validation as datetime)
+                    // date_touch = use current timestamp when saving (even if readonly, if type=date)
+                    // date_touch_on_create = use current timestamp when saving ONLY on create (even if readonly, if type=date)
+                // type = text / other (single line text box)
+                // type = desc (textarea)
+                // type = number (data validation as int float)
+                // type = decimal (data validation as decimal)
+                // type = password (single line password box)
+                // type = bool (single line password box)
+                // type = related (select box)
+                    // related = table to relate to (if type=related)
+                    // related_field = field name on table to show (if type=related) - default "name"
+                    // related_multiple = true (ability to select multiple values if type=related)
+                    // related_sql = custom where / order by SQL (if type=related)
             // readonly = true (shows as text)
             // display = false (doesn't show on form, but can be saved)
             // comments = comments to show for field
@@ -329,16 +331,14 @@ class WP_UI_Admin
                     $attributes['related_sql'] = false;
                 if(!isset($attributes['readonly']))
                     $attributes['readonly'] = false;
-                if(!isset($attributes['update'])||true===$attributes['readonly'])
-                    $attributes['update'] = false;
-                if(!isset($attributes['date_update'])||$attributes['type']!='date')
-                    $attributes['date_update'] = false;
+                if(!isset($attributes['date_touch'])||$attributes['type']!='date')
+                    $attributes['date_touch'] = false;
+                if(!isset($attributes['date_touch_on_create'])||$attributes['type']!='date')
+                    $attributes['date_touch_on_create'] = false;
                 if(!isset($attributes['display']))
                     $attributes['display'] = true;
                 if(!isset($attributes['export']))
                     $attributes['export'] = true;
-                if(!isset($attributes['update_on_create']))
-                    $attributes['update_on_create'] = false;
                 if(!isset($attributes['comments']))
                     $attributes['comments'] = '';
                 if(!isset($attributes['comments_top']))
@@ -485,22 +485,6 @@ class WP_UI_Admin
     <form method="post" action="<?php echo $this->var_update($vars); ?>">
         <table class="form-table">
 <?php
-        // available options
-        // type = date (data validation as datetime)
-            // date_update = use current timestamp when saving (even if readonly, if type=date)
-        // type = text / other (single line text box)
-        // type = desc (textarea)
-        // type = number (data validation as int float)
-        // type = decimal (data validation as decimal)
-        // type = password (single line password box)
-        // type = bool (single line password box)
-        // type = related (select box)
-            // related = table to relate to (if type=related)
-            // related_field = field name on table to show (if type=related) - default "name"
-            // related_multiple = true (ability to select multiple values if type=related)
-            // related_sql = custom where / order by SQL (if type=related)
-        // readonly = true (shows as text)
-        // display = false (doesn't show on form, but can be saved)
         foreach($this->form_columns as $column=>$attributes)
         {
             if(!isset($this->row[$column]))
@@ -620,22 +604,6 @@ class WP_UI_Admin
     <h2>View <?php echo $this->item; ?> <small>(<a href="<?php echo $this->var_update(array('action'=>'manage','id'=>'')); ?>">&laquo; Back to Manage</a>)</small></h2>
     <table class="form-table">
 <?php
-        // available options
-        // type = date (data validation as datetime)
-            // update = if type=date then use current timestamp when saving (even if readonly)
-        // type = text / other (single line text box)
-        // type = desc (textarea)
-        // type = number (data validation as int float)
-        // type = decimal (data validation as decimal)
-        // type = password (single line password box)
-        // type = bool (single line password box)
-        // type = related (select box)
-            // related = table to relate to (if type=related)
-            // related_field = field name on table to show (if type=related) - default "name"
-            // related_multiple = true (ability to select multiple values if type=related)
-            // related_sql = custom where / order by SQL (if type=related)
-        // readonly = true (shows as text)
-        // display = false (doesn't show on form, but can be saved)
         foreach($this->form_columns as $column=>$attributes)
         {
             if(!isset($this->row[$column]))
@@ -730,19 +698,6 @@ class WP_UI_Admin
         $action = 'saved';
         if($create==1)
             $action = 'created';
-
-        // available options
-        // type = date (data validation as datetime)
-        // type = text / other (single line text box)
-        // type = desc (textarea)
-        // type = number (data validation as int float)
-        // type = decimal (data validation as decimal)
-        // type = password (single line password box)
-        // type = bool (single line password box)
-        // readonly = true (shows as text)
-        // update = if type=date then use current timestamp when saving (even if readonly)
-        // update_on_create = if type=date then use current timestamp when saving (only on creation, even if readonly)
-        // display = false (doesn't show on form, but can be saved)
         $column_sql = array();
         $values = array();
         foreach($this->form_columns as $column=>$attributes)
@@ -750,17 +705,19 @@ class WP_UI_Admin
             $vartype = '%s';
             if($attributes['type']=='bool')
                 $selected = ($_POST[$column]==1?1:0);
-            if((false===$attributes['display']||false===$attributes['readonly'])&&$attributes['type']!='date')
-                continue;
-
+            if(false===$attributes['display']||false!==$attributes['readonly'])
+            {
+                if($attributes['type']!='date')
+                    continue;
+                if(false===$attributes['date_touch']&&(false===$attributes['date_touch_on_create']||$create!=1||$this->id>0))
+                    continue;
+            }
             if($attributes['type']=='date')
             {
-                if($attributes['update']||($attributes['update_on_create']&&$create==1&&$this->id<1))
+                if(false!==$attributes['date_touch']||(false!==$attributes['date_touch_on_create']&&$create==1&&$this->id<1))
                     $value = date("Y-m-d H:i:s");
-                elseif(false===$attributes['readonly'])
-                    $value = date("Y-m-d H:i:s",strtotime($_POST[$column]));
                 else
-                    continue;
+                    $value = date("Y-m-d H:i:s",strtotime($_POST[$column]));
             }
             else
             {

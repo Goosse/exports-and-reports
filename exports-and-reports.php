@@ -158,9 +158,9 @@ function exports_reports_groups ()
     require_once EXPORTS_REPORTS_DIR.'/classes/Admin.class.php';
     $columns = array('name','created'=>array('label'=>'Date Created','type'=>'date'),'updated'=>array('label'=>'Last Modified','type'=>'date'));
     $form_columns = $columns;
-    $form_columns['created']['update_on_create'] = true;
+    $form_columns['created']['date_touch_on_create'] = true;
     $form_columns['created']['display'] = false;
-    $form_columns['updated']['update'] = true;
+    $form_columns['updated']['date_touch'] = true;
     $form_columns['updated']['display'] = false;
     $admin = new WP_UI_Admin(array('css'=>EXPORTS_REPORTS_URL.'/assets/admin.css','item'=>'Group','items'=>'Groups','table'=>EXPORTS_REPORTS_TBL.'groups','columns'=>$columns,'form_columns'=>$form_columns,'icon'=>EXPORTS_REPORTS_URL.'/assets/icons/32.png'));
     $admin->go();
@@ -170,9 +170,9 @@ function exports_reports_reports ()
     require_once EXPORTS_REPORTS_DIR.'/classes/Admin.class.php';
     $columns = array('name','created'=>array('label'=>'Date Created','type'=>'date'),'updated'=>array('label'=>'Last Modified','type'=>'date'));
     $form_columns = $columns;
-    $form_columns['created']['update_on_create'] = true;
+    $form_columns['created']['date_touch_on_create'] = true;
     $form_columns['created']['display'] = false;
-    $form_columns['updated']['update'] = true;
+    $form_columns['updated']['date_touch'] = true;
     $form_columns['updated']['display'] = false;
     $form_columns['group'] = array('label'=>'Group','type'=>'related','related'=>EXPORTS_REPORTS_TBL.'groups');
     $form_columns['sql_query'] = array('label'=>'SQL Query','type'=>'desc');
