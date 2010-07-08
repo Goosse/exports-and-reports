@@ -2,7 +2,7 @@
 Contributors: sc0ttkclark
 Donate link: http://www.scottkclark.com/
 Tags: exports, reports, reporting, exporting, csv, tab, xml, json
-Requires at least: 3.0
+Requires at least: 2.9
 Tested up to: 3.0
 Stable tag: 0.2
 
