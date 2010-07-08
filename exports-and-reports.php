@@ -98,7 +98,7 @@ function exports_reports_get_capabilities ($caps)
 }
 function exports_reports_capabilities ()
 {
-    return array('exports_reports_settings','exports_reports_view');
+    return array('exports_reports_full_access','exports_reports_settings','exports_reports_view');
 }
 function exports_reports_current_user_can_any ($caps)
 {
