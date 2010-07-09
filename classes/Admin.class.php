@@ -16,7 +16,7 @@ if(!is_object($wpdb))
 // FOR EXPORTS ONLY
 if(isset($_GET['download'])&&!isset($_GET['page'])&&is_user_logged_in())
 {
-    do_action('wp_ui_admin_export_download');
+    do_action('wp_admin_ui_export_download');
     $file = WP_CONTENT_DIR.'/exports/'.str_replace('/','',$_GET['export']);
     if(!isset($_GET['export'])||empty($_GET['export'])||!file_exists($file))
     {
@@ -49,13 +49,13 @@ if(isset($_GET['download'])&&!isset($_GET['page'])&&is_user_logged_in())
  *
  * @package Admin UI for Plugins
  *
- * @version 1.2.0
+ * @version 1.3.0
  * @author Scott Kingsley Clark
  * @link http://www.scottkclark.com/
  *
  * @param mixed $options
  */
-class WP_UI_Admin
+class WP_Admin_UI
 {
     // base
     var $item = 'Item';
@@ -104,8 +104,8 @@ class WP_UI_Admin
 
     function __construct ($options=false)
     {
-        do_action('wp_ui_admin_pre_init',$options);
-        $options = $this->apply_filters('options',$options);
+        do_action('wp_admin_ui_pre_init',$options);
+        $options = $this->do_hook('options',$options);
         $this->export_dir = WP_CONTENT_DIR.'/exports';
         $this->export_url = WP_CONTENT_URL.(str_replace(WP_CONTENT_DIR,'',__FILE__)).'?download=1&export=';
         if(false!==$this->get_var('id'))
@@ -136,7 +136,7 @@ class WP_UI_Admin
         if(false!==$this->readonly)
             $this->add = $this->edit = $this->delete = $this->save = false;
         $this->columns = $this->setup_columns();
-        $this->apply_filters('post_init',$options);
+        $this->do_hook('post_init',$options);
     }
     function get_var ($index,$default=false,$allowed=false,$array=false)
     {
@@ -152,11 +152,11 @@ class WP_UI_Admin
         $value = $default;
         if(isset($array[$index])&&(false===$allowed||in_array($array[$index],$allowed)))
             $value = $array[$index];
-        return $this->apply_filters('get_var',$value,$index,$default,$allowed,$array);
+        return $this->do_hook('get_var',$value,$index,$default,$allowed,$array);
     }
     function hidden_vars ()
     {
-        $this->apply_filters('hidden_vars');
+        $this->do_hook('hidden_vars');
         foreach($_GET as $k=>$v)
         {
 ?>
@@ -165,8 +165,8 @@ class WP_UI_Admin
         }
     }
     /*
-    // Example code for use with $this->apply_filters
-    function my_filter_function ($args=null,$obj)
+    // Example code for use with $this->do_hook
+    function my_filter_function ($args,$obj)
     {
         $obj[0]->item = 'Post';
         $obj[0]->add = true;
@@ -174,16 +174,18 @@ class WP_UI_Admin
         // may have more than one arg, dependant on filter
         return $args;
     }
-    add_filter('wp_ui_admin_post_init','my_filter_function',10,2);
+    add_filter('wp_admin_ui_post_init','my_filter_function',10,2);
+    // OR
+    add_action('wp_admin_ui_post_init','my_filter_function',10,2);
     */
-    function apply_filters ()
+    function do_hook ()
     {
         $args = func_get_args();
         if(empty($args))
             return false;
         $filter = $args[0];
         unset($args[0]);
-        $args = apply_filters('wp_ui_admin_'.$filter,$args,array(&$this,'wp_ui_admin_'.$filter));
+        $args = apply_filters('wp_admin_ui_'.$filter,$args,array(&$this,'wp_admin_ui_'.$filter));
         if(isset($args[1]))
             return $args[1];
         return false;
@@ -218,7 +220,7 @@ class WP_UI_Admin
             $url = explode('#',$url[0]);
             $url = $url[0];
         }
-        return $this->apply_filters('var_update',$url.'?'.http_build_query($get));
+        return $this->do_hook('var_update',$url.'?'.http_build_query($get));
     }
     function sanitize ($input)
     {
@@ -374,21 +376,21 @@ class WP_UI_Admin
     }
     function message ($msg)
     {
-        $msg = $this->apply_filters('message',$msg);
+        $msg = $this->do_hook('message',$msg);
 ?>
 	<div id="message" class="updated fade"><p><?php echo $msg; ?></p></div>
 <?php
     }
     function error ($msg)
     {
-        $msg = $this->apply_filters('error',$msg);
+        $msg = $this->do_hook('error',$msg);
 ?>
 	<div id="message" class="error fade"><p><?php echo $msg; ?></p></div>
 <?php
     }
     function go ()
     {
-        $this->apply_filters('go');
+        $this->do_hook('go');
         $_GET = $this->unsanitize($_GET);
         $_POST = $this->unsanitize($_POST);
         if(false!==$this->css)
@@ -418,7 +420,10 @@ class WP_UI_Admin
             $this->edit();
         }
         elseif($this->action=='delete'&&$this->delete)
+        {
             $this->delete();
+            $this->manage();
+        }
         elseif($this->do=='save'&&$this->save)
         {
             $this->save();
@@ -436,7 +441,7 @@ class WP_UI_Admin
     }
     function add ()
     {
-        $this->apply_filters('add');
+        $this->do_hook('add');
 ?>
 <div class="wrap">
     <div id="icon-edit-pages" class="icon32"<?php if(false!==$this->icon){ ?> style="background-position:0 0;background-image:url(<?php echo $this->icon; ?>);"<?php } ?>><br /></div>
@@ -447,7 +452,7 @@ class WP_UI_Admin
     }
     function edit ()
     {
-        $this->apply_filters('edit');
+        $this->do_hook('edit');
         if(isset($this->custom['edit'])&&function_exists("{$this->custom['edit']}"))
             $this->custom['edit']($this);
 ?>
@@ -460,7 +465,7 @@ class WP_UI_Admin
     }
     function form ($create=0)
     {
-        $this->apply_filters('form',$create);
+        $this->do_hook('form',$create);
         if(isset($this->custom['form'])&&function_exists("{$this->custom['form']}"))
             return $this->custom['form']($this,$create);
         if(false===$this->table&&false===$this->sql)
@@ -482,7 +487,7 @@ class WP_UI_Admin
             $vars = array('action'=>'edit','do'=>'save','id'=>$id);
         }
 ?>
-    <form method="post" action="<?php echo $this->var_update($vars); ?>">
+    <form method="post" action="<?php echo $this->var_update($vars); ?>" class="wp_admin_ui">
         <table class="form-table">
 <?php
         foreach($this->form_columns as $column=>$attributes)
@@ -503,6 +508,8 @@ class WP_UI_Admin
 ?>
             <span class="description"><?php echo $attributes['comments']; ?></span>
 <?php
+                if($attributes['type']!='desc'||$attributes['type']!='code')
+                    echo "<br />";
             }
             if(false!==$attributes['custom_input']&&function_exists("{$attributes['custom_input']}"))
             {
@@ -534,10 +541,10 @@ class WP_UI_Admin
                 elseif($attributes['type']=='password')
                 {
 ?>
-            <input type="password" name="<?php echo $column; ?>" id="admin_ui_<?php echo $column; ?>" value="<?php echo $this->row[$column]; ?>" />
+            <input type="password" name="<?php echo $column; ?>" id="admin_ui_<?php echo $column; ?>" value="<?php echo $this->row[$column]; ?>" class="regular-text" />
 <?php
                 }
-                elseif($attributes['type']=='desc')
+                elseif($attributes['type']=='desc'||$attributes['type']=='code')
                 {
 ?>
             <textarea name="<?php echo $column; ?>" id="admin_ui_<?php echo $column; ?>" rows="10" cols="50"><?php echo $this->row[$column]; ?></textarea>
@@ -545,30 +552,63 @@ class WP_UI_Admin
                 }
                 elseif($attributes['type']=='related'&&false!==$attributes['related'])
                 {
-                    $related = $wpdb->get_results('SELECT id,`'.$attributes['related_field'].'` FROM '.$attributes['related'].(!empty($attributes['related_sql'])?' '.$attributes['related_sql']:''));
+                    if(false===$attributes['related_custom'])
+                    {
+                        $related = $wpdb->get_results('SELECT id,`'.$attributes['related_field'].'` FROM '.$attributes['related'].(!empty($attributes['related_sql'])?' '.$attributes['related_sql']:''));
 ?>
             <select name="<?php echo $column; ?><?php echo (false!==$attributes['related_multiple']?'[]':''); ?>" id="admin_ui_<?php echo $column; ?>"<?php echo (false!==$attributes['related_multiple']?' MULTIPLE':''); ?>>
 <?php
-                    $selected_options = explode(',',$this->row[$column]);
-                    foreach($related as $option)
-                    {
+                        $selected_options = explode(',',$this->row[$column]);
+                        foreach($related as $option)
+                        {
 ?>
                 <option value="<?php echo $option->id; ?>"<?php echo (in_array($option->id,$selected_options)?' SELECTED':''); ?>><?php echo $option->$attributes['related_field']; ?></option>
 <?php
-                    }
+                        }
 ?>
             </select>
 <?php
+                    }
+                    else
+                    {
+                        $related = $attributes['related_custom'];
+                        if(!is_array($related))
+                        {
+                            $related = explode(',',$related);
+                        }
+?>
+            <select name="<?php echo $column; ?><?php echo (false!==$attributes['related_multiple']?'[]':''); ?>" id="admin_ui_<?php echo $column; ?>"<?php echo (false!==$attributes['related_multiple']?' MULTIPLE':''); ?>>
+<?php
+                        $selected_options = explode(',',$this->row[$column]);
+                        foreach($related as $option_id=>$option)
+                        {
+                            if(!is_array($option))
+                            {
+                                $option_id = $option;
+                                $option = array();
+                            }
+                            if(!isset($option['label']))
+                                $option['label'] = ucwords(str_replace('_',' ',$option_id));
+?>
+                <option value="<?php echo $option->id; ?>"<?php echo (in_array($option->id,$selected_options)?' SELECTED':''); ?>><?php echo $option->$attributes['related_field']; ?></option>
+<?php
+                        }
+?>
+            </select>
+<?php
+                    }
                 }
                 else
                 {
 ?>
-            <input type="text" name="<?php echo $column; ?>" id="admin_ui_<?php echo $column; ?>" value="<?php echo $this->row[$column]; ?>" />
+            <input type="text" name="<?php echo $column; ?>" id="admin_ui_<?php echo $column; ?>" value="<?php echo $this->row[$column]; ?>" class="regular-text" />
 <?php
                 }
             }
             if(!empty($attributes['comments'])&&false===$attributes['comments_top'])
             {
+                if($attributes['type']!='desc'||$attributes['type']!='code')
+                    echo "<br />";
 ?>
             <span class="description"><?php echo $attributes['comments']; ?></span>
 <?php
@@ -588,7 +628,7 @@ class WP_UI_Admin
     }
     function view ()
     {
-        $this->apply_filters('view');
+        $this->do_hook('view');
         if(isset($this->custom['view'])&&function_exists("{$this->custom['view']}"))
             return $this->custom['view']($this);
         if(false===$this->table&&false===$this->sql)
@@ -674,24 +714,28 @@ class WP_UI_Admin
 </div>
 <?php
     }
-    function delete ()
+    function delete ($id=false)
     {
-        $this->apply_filters('delete');
+        $this->do_hook('pre_delete');
         if(isset($this->custom['delete'])&&function_exists("{$this->custom['delete']}"))
             return $this->custom['delete']($this);
         if(false===$this->table&&false===$this->sql)
             return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "table" definition.');
+        if(false===$this->id&&false===$id)
+            return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "id" definition.');
+        if(false===$id)
+            $id = $this->id;
         global $wpdb;
-        $check = $wpdb->query($wpdb->prepare("DELETE FROM $this->table WHERE `id`=%d",array($this->id)));
+        $check = $wpdb->query($wpdb->prepare("DELETE FROM $this->table WHERE `id`=%d",array($id)));
         if($check)
             $this->message("<strong>Deleted:</strong> $this->item has been deleted.");
         else
             $this->error("<strong>Error:</strong> $this->item has not been deleted.");
-        $this->manage();
+        $this->do_hook('post_delete',$id);
     }
     function save ($create=0)
     {
-        $this->apply_filters('save',$create);
+        $this->do_hook('pre_save',$create);
         if(isset($this->custom['save'])&&function_exists("{$this->custom['save']}"))
             return $this->custom['save']($this);
         global $wpdb;
@@ -700,6 +744,7 @@ class WP_UI_Admin
             $action = 'created';
         $column_sql = array();
         $values = array();
+        $data = array();
         foreach($this->form_columns as $column=>$attributes)
         {
             $vartype = '%s';
@@ -752,6 +797,7 @@ class WP_UI_Admin
                 $value = $attributes['custom_save']($value,$column,$attributes,$this);
             $column_sql[] = "`$column`=$vartype";
             $values[] = $value;
+            $data[$column] = $value;
         }
         $column_sql = implode(',',$column_sql);
         if($create==0&&$this->id>0)
@@ -770,10 +816,11 @@ class WP_UI_Admin
         }
         else
             $this->error('<strong>Error</strong> '.$this->item.' has not been '.$action.'.');
+        $this->do_hook('post_save',$this->insert_id,$data,$create);
     }
     function export ()
     {
-        $this->apply_filters('export');
+        $this->do_hook('export');
         require_once(ABSPATH . 'wp-admin/includes/file.php');
         $url = explode('/',$_SERVER['REQUEST_URI']);
         $url = array_reverse($url);
@@ -941,20 +988,22 @@ class WP_UI_Admin
                 return false;
             }
         }
-        do_action('wp_ui_admin_export',$this,$export_file);
+        do_action('wp_admin_ui_export',$this,$export_file);
     }
-    function get_row ()
+    function get_row ($id=false)
     {
         if(isset($this->custom['row'])&&function_exists("{$this->custom['row']}"))
             return $this->custom['row']($this);
         if(false===$this->table&&false===$this->sql)
             return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "table" definition.');
-        if(false===$this->id)
+        if(false===$this->id&&false===$id)
             return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "id" definition.');
+        if(false===$id)
+            $id = $this->id;
         global $wpdb;
-        $sql = "SELECT * FROM $this->table WHERE `id`=".$this->sanitize($this->id);
+        $sql = "SELECT * FROM $this->table WHERE `id`=".$this->sanitize($id);
         $row = @current($wpdb->get_results($sql,ARRAY_A));
-        $row = $this->apply_filters('get_row',$row);
+        $row = $this->do_hook('get_row',$row);
         if(!empty($row))
             $this->row = $row;
     }
@@ -1025,7 +1074,7 @@ class WP_UI_Admin
             }
         }
         $results = $wpdb->get_results($sql,ARRAY_A);
-        $results = $this->apply_filters('get_data',$results);
+        $results = $this->do_hook('get_data',$results);
         if($full)
             $this->full_data = $results;
         else
@@ -1050,13 +1099,13 @@ class WP_UI_Admin
             }
         }
         $total = @current($wpdb->get_col("SELECT FOUND_ROWS()"));
-        $total = $this->apply_filters('get_data_total',$total);
+        $total = $this->do_hook('get_data_total',$total);
         if(is_numeric($total))
             $this->total = $total;
     }
     function manage ()
     {
-        $this->apply_filters('manage');
+        $this->do_hook('manage');
         if(isset($this->custom['manage'])&&function_exists("{$this->custom['manage']}"))
             return $this->custom['manage']($this);
 ?>
@@ -1158,7 +1207,7 @@ class WP_UI_Admin
     }
     function table ()
     {
-        $this->apply_filters('table');
+        $this->do_hook('table');
         if(isset($this->custom['table'])&&function_exists("{$this->custom['table']}"))
             return $this->custom['table']($this);
         if(empty($this->data))
@@ -1332,7 +1381,7 @@ jQuery('table.widefat tbody tr:even').addClass('alternate');
     }
     function pagination ()
     {
-        $this->apply_filters('pagination');
+        $this->do_hook('pagination');
         if(isset($this->custom['pagination'])&&function_exists("{$this->custom['pagination']}"))
             return $this->custom['pagination']($this);
         $page = $this->page;
@@ -1407,7 +1456,7 @@ jQuery('table.widefat tbody tr:even').addClass('alternate');
     }
     function limit ($options=false)
     {
-        $this->apply_filters('limit',$options);
+        $this->do_hook('limit',$options);
         if(isset($this->custom['limit'])&&function_exists("{$this->custom['limit']}"))
             return $this->custom['limit']($this);
         if(false===$options||!is_array($options)||empty($options))

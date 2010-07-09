@@ -3,7 +3,7 @@
 Plugin Name: Exports and Reports
 Plugin URI: http://www.scottkclark.com/
 Description: Define custom exports / reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
-Version: 0.2
+Version: 0.3
 Author: Scott Kingsley Clark
 Author URI: http://www.scottkclark.com/
 */
@@ -162,7 +162,7 @@ function exports_reports_groups ()
     $form_columns['created']['display'] = false;
     $form_columns['updated']['date_touch'] = true;
     $form_columns['updated']['display'] = false;
-    $admin = new WP_UI_Admin(array('css'=>EXPORTS_REPORTS_URL.'/assets/admin.css','item'=>'Group','items'=>'Groups','table'=>EXPORTS_REPORTS_TBL.'groups','columns'=>$columns,'form_columns'=>$form_columns,'icon'=>EXPORTS_REPORTS_URL.'/assets/icons/32.png'));
+    $admin = new WP_Admin_UI(array('css'=>EXPORTS_REPORTS_URL.'/assets/admin.css','item'=>'Group','items'=>'Groups','table'=>EXPORTS_REPORTS_TBL.'groups','columns'=>$columns,'form_columns'=>$form_columns,'icon'=>EXPORTS_REPORTS_URL.'/assets/icons/32.png'));
     $admin->go();
 }
 function exports_reports_reports ()
@@ -178,7 +178,7 @@ function exports_reports_reports ()
     $form_columns['sql_query'] = array('label'=>'SQL Query','type'=>'desc');
     $form_columns['field_data'] = array('label'=>'Fields','custom_input'=>'exports_reports_report_field','custom_save'=>'exports_reports_report_field_save');
     $form_columns['disable_export'] = array('label'=>'Disable Export?','type'=>'bool');
-    $admin = new WP_UI_Admin(array('css'=>EXPORTS_REPORTS_URL.'/assets/admin.css','item'=>'Report','items'=>'Reports','table'=>EXPORTS_REPORTS_TBL.'reports','columns'=>$columns,'form_columns'=>$form_columns,'icon'=>EXPORTS_REPORTS_URL.'/assets/icons/32.png'));
+    $admin = new WP_Admin_UI(array('css'=>EXPORTS_REPORTS_URL.'/assets/admin.css','item'=>'Report','items'=>'Reports','table'=>EXPORTS_REPORTS_TBL.'reports','columns'=>$columns,'form_columns'=>$form_columns,'icon'=>EXPORTS_REPORTS_URL.'/assets/icons/32.png'));
     $admin->go();
 }
 function exports_reports_report_field ($column,$attributes,$obj)
@@ -311,7 +311,7 @@ function exports_reports_view ()
                 $options['columns'][$field['name']]['export'] = false;
         }
     }
-    $admin = new WP_UI_Admin($options);
+    $admin = new WP_Admin_UI($options);
     if(count($selectable_reports)>1)
     {
 ?>
