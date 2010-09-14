@@ -2,9 +2,9 @@
 Contributors: sc0ttkclark
 Donate link: http://www.scottkclark.com/
 Tags: exports, reports, reporting, exporting, csv, tab, xml, json
-Requires at least: 2.9
+Requires at least: 3.0.1
 Tested up to: 3.0
-Stable tag: 0.2
+Stable tag: 0.3.1
 
 THIS IS A BETA VERSION - Currently in development - Define custom exports / reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
 
@@ -14,11 +14,11 @@ THIS IS A BETA VERSION - Currently in development - Define custom exports / repo
 
 **OFFICIAL SUPPORT** - Exports and Reports - Support Forums: http://www.scottkclark.com/forums/exports-and-reports/
 
-Define custom exports / reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
+Define custom Exports / Reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
 
-All you do is install the plugin, create your Groups, create your Reports, and hand it off to your clients. Exportable reports in CSV, TAB, XML, and JSON formats.
+All you do is install the plugin, create your Groups, create your Reports, and hand it off to your clients. Exportable reports in CSV, TSV, XML, JSON, and custom delimiter separated formats.
 
-Coming soon... Pods CMS Framework integration, Daily Export Cleanup via wp_cron, Role restriction for Groups / Reports, and Date Filtering
+Coming soon... Pods CMS Framework integration
 
 == Frequently Asked Questions ==
 
@@ -32,10 +32,32 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 
 == Changelog ==
 
+= 0.3.1 =
+* Fixed menu access
+
+= 0.3 =
+* Upgraded Admin.class.php with Bug fixes and features (better UI and filtering)
+* Export data fixes on CSV / TSV to support Excel
+* Redefined Date Data Type into three (Date, Date + Time, Time)
+* Filter by Date
+* Ability to clear entire export directory (based on logged export files)
+* Daily Export Cleanup via wp_cron
+
 = 0.2 =
 * First official release to the public as a plugin
 
 == Upgrade Notice ==
+
+= 0.3.1 =
+* Fixed menu access
+
+= 0.3 =
+* Upgraded Admin.class.php with Bug fixes and features (better UI and filtering)
+* Export data fixes on CSV / TSV to support Excel
+* Redefined Date Data Type into three (Date, Date + Time, Time)
+* Filter by Date
+* Ability to clear entire export directory (based on logged export files)
+* Daily Export Cleanup via wp_cron
 
 = 0.2 =
 You aren't using the real plugin, upgrade and you enjoy what you originally downloaded this for!
@@ -62,7 +84,11 @@ Scott Kingsley Clark from SKC Development -- Scott specializes in WordPress and 
 = Administration =
 * Create and Manage Groups
 * Create and Manage Reports
-* Admin.Class.php - A class for plugins to manage data using the WordPress UI appearance
+* Limit which User Roles have access to a Group or Report
+* Filter by Date
+* Ability to clear entire export directory (based on logged export files)
+* Daily Export Cleanup via wp_cron
+* Admin.class.php - A class for plugins to manage data using the WordPress UI appearance
 
 = Reporting =
 * Automatic Pagination
@@ -70,16 +96,13 @@ Scott Kingsley Clark from SKC Development -- Scott specializes in WordPress and 
 * Pre-display modification through custom defined function per field or row
 
 = Exporting =
-* CSV - Comma-separated Values
-* TAB - Tab-delimited Values
+* CSV - Comma-separated Values (w/ Excel support)
+* TSV - Tab-separated Values (w/ Excel support)
 * XML - XML 1.0 UTF-8 data
 * JSON - JSON for use in Javascript and PHP5+
+* Custom - Custom delimiter separated Values
 
 == Roadmap ==
 
-= 0.3 =
-* Daily Export Cleanup via wp_cron
+= 0.4 =
 * Pods CMS Framework integration
-* Limit which User Roles have access to a Group or Report
-* Ability to clear entire export directory
-* Filter by Date
