@@ -1,10 +1,10 @@
 === Exports and Reports ===
 Contributors: sc0ttkclark
-Donate link: http://www.scottkclark.com/
+Donate link: http://scottkclark.com/
 Tags: exports, reports, reporting, exporting, csv, tab, xml, json
 Requires at least: 3.0.1
-Tested up to: 3.0
-Stable tag: 0.3.1
+Tested up to: 3.0.1
+Stable tag: 0.3.2
 
 THIS IS A BETA VERSION - Currently in development - Define custom exports / reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
 
@@ -12,7 +12,7 @@ THIS IS A BETA VERSION - Currently in development - Define custom exports / repo
 
 **THIS IS A BETA VERSION - Currently in development**
 
-**OFFICIAL SUPPORT** - Exports and Reports - Support Forums: http://www.scottkclark.com/forums/exports-and-reports/
+**OFFICIAL SUPPORT** - Exports and Reports - Support Forums: http://scottkclark.com/forums/exports-and-reports/
 
 Define custom Exports / Reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
 
@@ -32,6 +32,9 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 
 == Changelog ==
 
+= 0.3.2 =
+* Bug fix for SQL
+
 = 0.3.1 =
 * Fixed menu access
 
@@ -48,19 +51,8 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 
 == Upgrade Notice ==
 
-= 0.3.1 =
-* Fixed menu access
-
-= 0.3 =
-* Upgraded Admin.class.php with Bug fixes and features (better UI and filtering)
-* Export data fixes on CSV / TSV to support Excel
-* Redefined Date Data Type into three (Date, Date + Time, Time)
-* Filter by Date
-* Ability to clear entire export directory (based on logged export files)
-* Daily Export Cleanup via wp_cron
-
-= 0.2 =
-You aren't using the real plugin, upgrade and you enjoy what you originally downloaded this for!
+= 0.3.2 =
+* Bug fix for SQL
 
 == Installation ==
 
@@ -73,7 +65,7 @@ OR you can just install it with WordPress by going to Plugins >> Add New >> and 
 
 == Official Support ==
 
-Exports and Reports - Support Forums: http://www.scottkclark.com/forums/exports-and-reports/
+Exports and Reports - Support Forums: http://scottkclark.com/forums/exports-and-reports/
 
 == About the Plugin Author ==
 

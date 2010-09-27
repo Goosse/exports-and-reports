@@ -1,16 +1,16 @@
 <?php
 /*
 Plugin Name: Exports and Reports
-Plugin URI: http://www.scottkclark.com/
+Plugin URI: http://scottkclark.com/wordpress/exports-and-reports/
 Description: Define custom exports / reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
-Version: 0.3.1
+Version: 0.3.2
 Author: Scott Kingsley Clark
-Author URI: http://www.scottkclark.com/
+Author URI: http://scottkclark.com/
 */
 
 global $wpdb;
 define('EXPORTS_REPORTS_TBL',$wpdb->prefix.'exportsreports_');
-define('EXPORTS_REPORTS_VERSION','030');
+define('EXPORTS_REPORTS_VERSION','032');
 define('EXPORTS_REPORTS_URL',plugin_dir_url(__FILE__));
 define('EXPORTS_REPORTS_DIR',plugin_dir_path(__FILE__));
 define('EXPORTS_REPORTS_EXPORT_DIR',WP_CONTENT_DIR.'/exports');
@@ -18,6 +18,21 @@ define('EXPORTS_REPORTS_EXPORT_DIR',WP_CONTENT_DIR.'/exports');
 add_action('admin_init','exports_reports_init');
 add_action('admin_menu','exports_reports_menu');
 
+function exports_reports_reset ()
+{
+    // thx pods ;)
+    $sql = file_get_contents(EXPORTS_REPORTS_DIR.'assets/dump.sql');
+    $sql_explode = preg_split("/;\n/", str_replace('wp_', $wpdb->prefix, $sql));
+    if(count($sql_explode)==1)
+        $sql_explode = preg_split("/;\r/", str_replace('wp_', $wpdb->prefix, $sql));
+    for ($i = 0, $z = count($sql_explode); $i < $z; $i++)
+    {
+        $wpdb->query($sql_explode[$i]);
+    }
+    delete_option('exports_reports_version');
+    add_option('exports_reports_version',EXPORTS_REPORTS_VERSION);
+    exports_reports_schedule_cleanup();
+}
 function exports_reports_init ()
 {
     global $current_user,$wpdb;
@@ -26,25 +41,14 @@ function exports_reports_init ()
     $version = get_option('exports_reports_version');
     if(empty($version))
     {
-        // thx pods ;)
-        $sql = file_get_contents(EXPORTS_REPORTS_DIR.'assets/dump.sql');
-        $sql_explode = preg_split("/;\n/", str_replace('wp_', $wpdb->prefix, $sql));
-        if(count($sql_explode)==1)
-            $sql_explode = preg_split("/;\r/", str_replace('wp_', $wpdb->prefix, $sql));
-        for ($i = 0, $z = count($sql_explode); $i < $z; $i++)
-        {
-            $wpdb->query($sql_explode[$i]);
-        }
-        delete_option('exports_reports_version');
-        add_option('exports_reports_version',EXPORTS_REPORTS_VERSION);
-        exports_reports_schedule_cleanup();
+        exports_reports_reset();
     }
     elseif($version!=EXPORTS_REPORTS_VERSION)
     {
         $version = intval($version);
-        if($version<30)
+        if($version<32)
         {
-            $wpdb->query("ALTER TABLE ".EXPORTS_REPORTS_TBL."groups ADD COLUMN `role_access` MEDIUMTEXT NOT NULL AFTER `disable`");
+            $wpdb->query("ALTER TABLE ".EXPORTS_REPORTS_TBL."groups ADD COLUMN `role_access` MEDIUMTEXT NOT NULL AFTER `disabled`");
             $wpdb->query("ALTER TABLE ".EXPORTS_REPORTS_TBL."reports ADD COLUMN `disabled` int(1) NOT NULL AFTER `group`");
             $wpdb->query("ALTER TABLE ".EXPORTS_REPORTS_TBL."reports ADD COLUMN `role_access` MEDIUMTEXT NOT NULL AFTER `disable_export`");
             $wpdb->query("ALTER TABLE ".EXPORTS_REPORTS_TBL."reports ADD COLUMN `weight` int(10) NOT NULL AFTER `role_access`");
@@ -72,7 +76,6 @@ function exports_reports_init ()
     {
         $exports_reports_full_access = current_user_can("administrator") ? "exports_reports_full_access" : "";
         $exports_reports_full_access = apply_filters("exports_reports_full_access", $exports_reports_full_access);
-
         if(!empty($exports_reports_full_access))
             $current_user->add_cap($exports_reports_full_access);
     }
@@ -87,8 +90,7 @@ function exports_reports_menu ()
     if(empty($min_cap))
         $min_cap = 'exports_reports_full_access';
     add_menu_page('Reports', 'Reports', $has_full_access ? 'read' : $min_cap, 'exports-reports', null, EXPORTS_REPORTS_URL.'assets/icons/16.png');
-    add_submenu_page('exports-reports', 'About', 'About', $has_full_access ? 'read' : $min_cap, 'exports-reports', 'exports_reports_about');
-    add_submenu_page('exports-reports', 'Manage Groups', 'Manage Groups', $has_full_access ? 'read' : 'exports_reports_settings', 'exports-reports-groups', 'exports_reports_groups');
+    add_submenu_page('exports-reports', 'Manage Groups', 'Manage Groups', $has_full_access ? 'read' : 'exports_reports_settings', 'exports-reports', 'exports_reports_groups');
     add_submenu_page('exports-reports', 'Manage Reports', 'Manage Reports', $has_full_access ? 'read' : 'exports_reports_settings', 'exports-reports-reports', 'exports_reports_reports');
     $groups = $wpdb->get_results('SELECT id,name FROM '.EXPORTS_REPORTS_TBL.'groups WHERE disabled=0');
     if(!empty($groups))
@@ -123,6 +125,7 @@ function exports_reports_menu ()
         }
     }
     add_submenu_page('exports-reports', 'Settings', 'Settings', $has_full_access ? 'read' : 'exports_reports_settings', 'exports-reports-settings', 'exports_reports_settings');
+    add_submenu_page('exports-reports', 'About', 'About', $has_full_access ? 'read' : $min_cap, 'exports-reports-about', 'exports_reports_about');
 }
 function exports_reports_get_capabilities ($caps)
 {
@@ -160,6 +163,17 @@ function exports_reports_settings ()
     <div id="icon-edit-pages" class="icon32" style="background-position:0 0;background-image:url(<?php echo EXPORTS_REPORTS_URL; ?>assets/icons/32.png);"><br /></div>
     <h2>Exports and Reports - Settings</h2>
 <?php
+if(isset($_POST['reset']))
+{
+    exports_reports_cleanup(true);
+?>
+	<div id="message" class="updated fade"><p>Your Exports directory has been cleaned up and all export files have been removed.</p></div>
+<?php
+    exports_reports_reset();
+?>
+	<div id="message" class="updated fade"><p>Your Settings have been reset.</p></div>
+<?php
+}
 if(isset($_POST['clear']))
 {
     exports_reports_cleanup(true);
@@ -173,10 +187,17 @@ if(isset($_POST['clear']))
     <form method="post" action="">
         <table class="form-table">
             <tr valign="top">
-                <th scope="row"><label>Clear Exports Directory</label></th>
+                <th scope="row"><label for="clear">Clear Exports Directory</label></th>
                 <td>
                     <input name="clear" type="submit" id="clear" value=" Clear Now " />
                     <span class="description">This will remove all files from your Exports directory - <?php echo WP_CONTENT_URL; ?>/exports/</span>
+                </td>
+            </tr>
+            <tr valign="top">
+                <th scope="row"><label for="reset">Reset Settings</label></th>
+                <td>
+                    <input name="reset" type="submit" id="reset" value=" Reset Now " />
+                    <span class="description">This will clear all groups / reports and remove all files from your Exports directory too - <?php echo WP_CONTENT_URL; ?>/exports/</span>
                 </td>
             </tr><!--
             <tr valign="top">
@@ -186,10 +207,10 @@ if(isset($_POST['clear']))
                     <span class="description"></span>
                 </td>
             </tr>-->
-        </table>
+        </table><!--
         <p class="submit">
             <input type="submit" name="Submit" class="button-primary" value="  Save Changes  " />
-        </p>
+        </p>-->
     </form>
 </div>
 <?php
