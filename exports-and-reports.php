@@ -20,6 +20,7 @@ add_action('admin_menu','exports_reports_menu');
 
 function exports_reports_reset ()
 {
+    global $wpdb;
     // thx pods ;)
     $sql = file_get_contents(EXPORTS_REPORTS_DIR.'assets/dump.sql');
     $sql_explode = preg_split("/;\n/", str_replace('wp_', $wpdb->prefix, $sql));

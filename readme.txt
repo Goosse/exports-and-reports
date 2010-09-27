@@ -4,7 +4,7 @@ Donate link: http://scottkclark.com/
 Tags: exports, reports, reporting, exporting, csv, tab, xml, json
 Requires at least: 3.0.1
 Tested up to: 3.0.1
-Stable tag: 0.3.2
+Stable tag: 0.3.3
 
 THIS IS A BETA VERSION - Currently in development - Define custom exports / reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
 
@@ -32,8 +32,13 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 
 == Changelog ==
 
+= 0.3.3 =
+* Bug fix for SQL (another)
+
 = 0.3.2 =
 * Bug fix for SQL
+* Moved About to bottom of Menu
+* Added 'Reset' option in Settings
 
 = 0.3.1 =
 * Fixed menu access
@@ -51,8 +56,8 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 
 == Upgrade Notice ==
 
-= 0.3.2 =
-* Bug fix for SQL
+= 0.3.3 =
+* Bug fix for SQL (another)
 
 == Installation ==
 
