@@ -44,7 +44,7 @@ if(isset($_GET['download'])&&!isset($_GET['page'])&&is_user_logged_in())
  *
  * @package Admin UI for Plugins
  *
- * @version 1.7.6
+ * @version 1.9
  * @author Scott Kingsley Clark
  * @link http://scottkclark.com/
  *
@@ -56,6 +56,7 @@ class WP_Admin_UI
     var $table = false;
     var $identifier = 'id';
     var $sql = false;
+    var $sql_count = false;
     var $id = false;
     var $action = 'manage';
     var $do = false;
@@ -94,6 +95,7 @@ class WP_Admin_UI
 
     // data related
     var $total = 0;
+    var $totals = false;
     var $columns = array();
     var $data = array();
     var $full_data = array();
@@ -105,6 +107,7 @@ class WP_Admin_UI
     var $export_columns = array();
     var $reorder_columns = array();
     var $insert_id = 0;
+    var $related = array();
 
     // export related
     var $export_dir = false;
@@ -149,11 +152,10 @@ class WP_Admin_UI
         }
         if(false!==$this->readonly)
             $this->add = $this->edit = $this->delete = $this->save = $this->reorder = false;
-        if(false===$this->order)
-            $this->order = $this->identifier;
         if(false!==$this->reorder&&false===$this->reorder_order)
             $this->reorder_order = $this->reorder;
-        $this->columns = $this->setup_columns();
+        if (!empty($this->columns))
+            $this->columns = $this->setup_columns();
         if(!empty($this->filters)&&!is_array($this->filters))
             $this->filters = implode(',',$this->filters);
         $this->do_hook('post_init',$options);
@@ -257,30 +259,20 @@ class WP_Admin_UI
     {
         global $wpdb;
         $output = array();
-        if(is_object($input))
-        {
+        if (is_object($input)) {
             $input = (array) $input;
-            foreach($input as $key => $val)
-            {
+            foreach ($input as $key => $val) {
                 $output[$key] = $this->sanitize($val);
             }
             $output = (object) $output;
         }
-        elseif(is_array($input))
-        {
-            foreach($input as $key => $val)
-            {
+        elseif (is_array($input)) {
+            foreach ($input as $key => $val) {
                 $output[$key] = $this->sanitize($val);
             }
         }
-        elseif(empty($input))
-        {
-            $output = $input;
-        }
-        else
-        {
+        elseif (!empty($input))
             $output = $wpdb->_real_escape(trim($input));
-        }
         return $output;
     }
     function unsanitize ($input)
@@ -312,9 +304,22 @@ class WP_Admin_UI
         }
         return $output;
     }
-    function setup_columns ($columns=null,$which='columns')
+    function catch_columns ($full=false) {
+        $data = $this->data;
+        if ($full)
+            $data = $this->full_data;
+        if (!empty($data) && is_array($data) && isset($data[0]))
+            $data = @current($data);
+        $columns = array();
+        foreach ((array) $data as $column => $value) {
+            $column = trim(str_replace('`', '', $column));
+            if (0 < strlen($column))
+                $columns[] = $column;
+        }
+        $this->columns = $this->setup_columns($columns,'columns',true);
+    }
+    function setup_columns ($columns=null,$which='columns',$init=false)
     {
-        $init = false;
         if(null===$columns)
         {
             $columns = $this->$which;
@@ -323,33 +328,6 @@ class WP_Admin_UI
         }
         if(!empty($columns))
         {
-            // Available Attributes
-            // type = field type
-                // type = date (data validation as date)
-                // type = time (data validation as time)
-                // type = datetime (data validation as datetime)
-                    // date_touch = use current timestamp when saving (even if readonly, if type is date-related)
-                    // date_touch_on_create = use current timestamp when saving ONLY on create (even if readonly, if type is date-related)
-                    // date_ongoing = use this additional column to search between as if the first is the "start" and the date_ongoing is the "end" for filter
-                // type = text / other (single line text box)
-                // type = desc (textarea)
-                // type = number (data validation as int float)
-                // type = decimal (data validation as decimal)
-                // type = password (single line password box)
-                // type = bool (single line password box)
-                // type = related (select box)
-                    // related = table to relate to (if type=related) OR custom array of (key=>label or comma separated values) items
-                    // related_field = field name on table to show (if type=related) - default "name"
-                    // related_multiple = true (ability to select multiple values if type=related)
-                    // related_sql = custom where / order by SQL (if type=related)
-            // readonly = true (shows as text)
-            // display = false (doesn't show on form, but can be saved)
-            // search = this field is searchable
-            // filter = this field will be independantly searchable (by default, searchable fields are searched by the primary search box)
-            // comments = comments to show for field
-            // comments_top = true (shows comments above field instead of below)
-            // real_name = the real name of the field (if using an alias for 'name')
-            // group_related = true (uses HAVING instead of WHERE for filtering column)
             $new_columns = array();
             $filterable = false;
             if(empty($this->filters)&&(empty($this->search_columns)||$which=='search_columns')&&false!==$this->search)
@@ -360,84 +338,10 @@ class WP_Admin_UI
             foreach($columns as $column=>$attributes)
             {
                 if(!is_array($attributes))
-                {
                     $column = $attributes;
-                    $attributes = array();
-                }
-                if(!isset($attributes['real_name']))
-                    $attributes['real_name'] = false;
-                if(!isset($attributes['label']))
-                    $attributes['label'] = ucwords(str_replace('_',' ',$column));
-                if(!isset($attributes['type']))
-                    $attributes['type'] = 'text';
-                if('related'!=$attributes['type']||!isset($attributes['related']))
-                    $attributes['related'] = false;
-                if('related'!=$attributes['type']||!isset($attributes['related_id']))
-                    $attributes['related_id'] = 'id';
-                if('related'!=$attributes['type']||!isset($attributes['related_field']))
-                    $attributes['related_field'] = 'name';
-                if('related'!=$attributes['type']||!isset($attributes['related_multiple']))
-                    $attributes['related_multiple'] = false;
-                if('related'!=$attributes['type']||!isset($attributes['related_sql']))
-                    $attributes['related_sql'] = false;
-                if('related'==$attributes['type']&&(is_array($attributes['related'])||strpos($attributes['related'],',')))
-                {
-                    if(!is_array($attributes['related']))
-                    {
-                        $attributes['related'] = @explode(',',$attributes['related']);
-                        $related_items = array();
-                        foreach($attributes['related'] as $key=>$label)
-                        {
-                            if(is_numeric($key))
-                            {
-                                $key = $label;
-                                $label = ucwords(str_replace('_',' ',$label));
-                            }
-                            $related_items[$key] = $label;
-                        }
-                        $attributes['related'] = $related_items;
-                    }
-                    if(empty($attributes['related']))
-                        $attributes['related'] = false;
-                }
-                if(!isset($attributes['readonly']))
-                    $attributes['readonly'] = false;
-                if(!isset($attributes['date_touch'])||!in_array($attributes['type'],array('date','time','datetime')))
-                    $attributes['date_touch'] = false;
-                if(!isset($attributes['date_touch_on_create'])||!in_array($attributes['type'],array('date','time','datetime')))
-                    $attributes['date_touch_on_create'] = false;
-                if(!isset($attributes['display']))
-                    $attributes['display'] = true;
-                if(!isset($attributes['search'])||false===$this->search)
-                    $attributes['search'] =(false!==$this->search?true:false);
-                if(!isset($attributes['filter'])||false===$this->search)
-                    $attributes['filter'] = false;
-                if(false!==$attributes['filter']&&false!==$filterable)
-                    $this->filters[] = $column;
-                if(false===$attributes['filter']||!isset($attributes['filter_label'])||!in_array($column,$this->filters))
-                    $attributes['filter_label'] = $attributes['label'];
-                if(false===$attributes['filter']||!isset($attributes['filter_default'])||!in_array($column,$this->filters))
-                    $attributes['filter_default'] = false;
-                if(false===$attributes['filter']||!isset($attributes['date_ongoing'])||!in_array($attributes['type'],array('date','time','datetime'))||!in_array($column,$this->filters))
-                    $attributes['date_ongoing'] = false;
-                if(false===$attributes['filter']||!isset($attributes['date_ongoing'])||!in_array($attributes['type'],array('date','time','datetime'))||!isset($attributes['date_ongoing_default'])||!in_array($column,$this->filters))
-                    $attributes['date_ongoing_default'] = false;
-                if(!isset($attributes['export']))
-                    $attributes['export'] = true;
-                if(!isset($attributes['group_related']))
-                    $attributes['group_related'] = false;
-                if(!isset($attributes['comments']))
-                    $attributes['comments'] = '';
-                if(!isset($attributes['comments_top']))
-                    $attributes['comments_top'] = false;
-                if(!isset($attributes['custom_input']))
-                    $attributes['custom_input'] = false;
-                if(!isset($attributes['custom_display']))
-                    $attributes['custom_display'] = false;
-                if(!isset($attributes['custom_form_display']))
-                    $attributes['custom_form_display'] = false;
-                if(!isset($attributes['custom_view']))
-                    $attributes['custom_view'] = $attributes['custom_display'];
+                $attributes = $this->setup_column($column, $attributes, $filterable);
+                if('search_columns' == $which && false === $attributes['search'])
+                    continue;
                 $new_columns[$column] = $attributes;
             }
             $columns = $new_columns;
@@ -466,6 +370,121 @@ class WP_Admin_UI
                 $this->reorder_columns = $columns;
         }
         return $this->do_hook('setup_columns',$columns,$which,$init);
+    }
+    function setup_column ($column=null,$attributes=null,$filterable=false)
+    {
+        // Available Attributes
+        // type = field type
+            // type = date (data validation as date)
+            // type = time (data validation as time)
+            // type = datetime (data validation as datetime)
+                // date_touch = use current timestamp when saving (even if readonly, if type is date-related)
+                // date_touch_on_create = use current timestamp when saving ONLY on create (even if readonly, if type is date-related)
+                // date_ongoing = use this additional column to search between as if the first is the "start" and the date_ongoing is the "end" for filter
+            // type = text / other (single line text box)
+            // type = desc (textarea)
+            // type = number (data validation as int float)
+            // type = decimal (data validation as decimal)
+            // type = password (single line password box)
+            // type = bool (single line password box)
+            // type = related (select box)
+                // related = table to relate to (if type=related) OR custom array of (key=>label or comma separated values) items
+                // related_field = field name on table to show (if type=related) - default "name"
+                // related_multiple = true (ability to select multiple values if type=related)
+                // related_sql = custom where / order by SQL (if type=related)
+        // readonly = true (shows as text)
+        // display = false (doesn't show on form, but can be saved)
+        // search = this field is searchable
+        // filter = this field will be independantly searchable (by default, searchable fields are searched by the primary search box)
+        // comments = comments to show for field
+        // comments_top = true (shows comments above field instead of below)
+        // real_name = the real name of the field (if using an alias for 'name')
+        // group_related = true (uses HAVING instead of WHERE for filtering column)
+        if(!is_array($attributes))
+        {
+            if (null !== $attributes)
+                $column = $attributes;
+            $attributes = array();
+        }
+        if(!isset($attributes['real_name']))
+            $attributes['real_name'] = false;
+        if(!isset($attributes['label']))
+            $attributes['label'] = ucwords(str_replace('_',' ',$column));
+        if(!isset($attributes['type']))
+            $attributes['type'] = 'text';
+        if('related'!=$attributes['type']||!isset($attributes['custom_relate']))
+            $attributes['custom_relate'] = false;
+        if('related'!=$attributes['type']||!isset($attributes['related']))
+            $attributes['related'] = false;
+        if('related'!=$attributes['type']||!isset($attributes['related_id']))
+            $attributes['related_id'] = 'id';
+        if('related'!=$attributes['type']||!isset($attributes['related_field']))
+            $attributes['related_field'] = 'name';
+        if('related'!=$attributes['type']||!isset($attributes['related_multiple']))
+            $attributes['related_multiple'] = false;
+        if('related'!=$attributes['type']||!isset($attributes['related_sql']))
+            $attributes['related_sql'] = false;
+        if('related'==$attributes['type']&&(is_array($attributes['related'])||strpos($attributes['related'],',')))
+        {
+            if(!is_array($attributes['related']))
+            {
+                $attributes['related'] = @explode(',',$attributes['related']);
+                $related_items = array();
+                foreach($attributes['related'] as $key=>$label)
+                {
+                    if(is_numeric($key))
+                    {
+                        $key = $label;
+                        $label = ucwords(str_replace('_',' ',$label));
+                    }
+                    $related_items[$key] = $label;
+                }
+                $attributes['related'] = $related_items;
+            }
+            if(empty($attributes['related']))
+                $attributes['related'] = false;
+        }
+        if(!isset($attributes['readonly']))
+            $attributes['readonly'] = false;
+        if(!isset($attributes['date_touch'])||!in_array($attributes['type'],array('date','time','datetime')))
+            $attributes['date_touch'] = false;
+        if(!isset($attributes['date_touch_on_create'])||!in_array($attributes['type'],array('date','time','datetime')))
+            $attributes['date_touch_on_create'] = false;
+        if(!isset($attributes['display']))
+            $attributes['display'] = true;
+        if(!isset($attributes['search'])||false===$this->search)
+            $attributes['search'] =(false!==$this->search?true:false);
+        if(!isset($attributes['filter'])||false===$this->search)
+            $attributes['filter'] = false;
+        if(false!==$attributes['filter']&&false!==$filterable)
+            $this->filters[] = $column;
+        if(false===$attributes['filter']||!isset($attributes['filter_label'])||!in_array($column,$this->filters))
+            $attributes['filter_label'] = $attributes['label'];
+        if(false===$attributes['filter']||!isset($attributes['filter_default'])||!in_array($column,$this->filters))
+            $attributes['filter_default'] = false;
+        if(false===$attributes['filter']||!isset($attributes['date_ongoing'])||!in_array($attributes['type'],array('date','time','datetime'))||!in_array($column,$this->filters))
+            $attributes['date_ongoing'] = false;
+        if(false===$attributes['filter']||!isset($attributes['date_ongoing'])||!in_array($attributes['type'],array('date','time','datetime'))||!isset($attributes['filter_ongoing_default'])||!in_array($column,$this->filters))
+            $attributes['filter_ongoing_default'] = false;
+        if(!isset($attributes['export']))
+            $attributes['export'] = true;
+        if(!isset($attributes['total_field']))
+            $attributes['total_field'] = false;
+        if(!isset($attributes['group_related']))
+            $attributes['group_related'] = false;
+        if(!isset($attributes['comments']))
+            $attributes['comments'] = '';
+        if(!isset($attributes['comments_top']))
+            $attributes['comments_top'] = false;
+        if(!isset($attributes['custom_input']))
+            $attributes['custom_input'] = false;
+        if(!isset($attributes['custom_display']))
+            $attributes['custom_display'] = false;
+        if(!isset($attributes['custom_form_display']))
+            $attributes['custom_form_display'] = false;
+        if(!isset($attributes['custom_view']))
+            $attributes['custom_view'] = $attributes['custom_display'];
+        return $this->do_hook('setup_column',$attributes,$column,$filterable);
     }
     function message ($msg)
     {
@@ -607,6 +626,10 @@ class WP_Admin_UI
 <?php
         foreach($this->form_columns as $column=>$attributes)
         {
+            if(!is_array($attributes)) {
+                $column = $attributes;
+                $attributes = $this->setup_column($column);
+            }
             if(!isset($this->row[$column]))
                 $this->row[$column] = '';
             if($attributes['type']=='bool')
@@ -669,7 +692,7 @@ class WP_Admin_UI
                 {
                     if(!is_array($attributes['related']))
                     {
-                        $related = $wpdb->get_results('SELECT id,`'.$attributes['related_field'].'` FROM '.$attributes['related'].(!empty($attributes['related_sql'])?' '.$attributes['related_sql']:''));
+                        $related = $wpdb->get_results('SELECT id,`'.(string) $attributes['related_field'].'` FROM '.(string) $attributes['related'].(!empty($attributes['related_sql'])?' '.(string) $attributes['related_sql']:''));
 ?>
             <select name="<?php echo $column; ?><?php echo (false!==$attributes['related_multiple']?'[]':''); ?>" id="admin_ui_<?php echo $column; ?>"<?php echo (false!==$attributes['related_multiple']?' size="10" style="height:auto;" MULTIPLE':''); ?>>
 <?php
@@ -750,6 +773,10 @@ class WP_Admin_UI
 <?php
         foreach($this->view_columns as $column=>$attributes)
         {
+            if(!is_array($attributes)) {
+                $column = $attributes;
+                $attributes = $this->setup_column($column);
+            }
             if(!isset($this->row[$column]))
                 $this->row[$column] = '';
             if(false===$attributes['display'])
@@ -789,7 +816,7 @@ class WP_Admin_UI
                     $this->row[$column] = array();
                     if(!is_array($attributes['related']))
                     {
-                        $related = $wpdb->get_results('SELECT id,`'.$attributes['related_field'].'` FROM '.$attributes['related'].' WHERE id IN ('.$old_value.')'.(!empty($attributes['related_sql'])?' '.$attributes['related_sql']:''));
+                        $related = $wpdb->get_results('SELECT id,`'.(string) $attributes['related_field'].'` FROM '.(string) $attributes['related'].' WHERE id IN ('.(string) $old_value.')'.(!empty($attributes['related_sql'])?' '.(string) $attributes['related_sql']:''));
                         foreach($related as $option)
                         {
                             $this->row[$column][] = $option->$attributes['related_field'];
@@ -866,9 +893,11 @@ class WP_Admin_UI
         $data = array();
         foreach($this->form_columns as $column=>$attributes)
         {
+            if(!is_array($attributes)) {
+                $column = $attributes;
+                $attributes = $this->setup_column($column);
+            }
             $vartype = '%s';
-            if($attributes['type']=='bool')
-                $selected = ($_POST[$column]==1?1:0);
             if(false===$attributes['display']||false!==$attributes['readonly'])
             {
                 if(!in_array($attributes['type'],array('date','time','datetime')))
@@ -892,11 +921,13 @@ class WP_Admin_UI
             }
             else
             {
+                if (!isset($_POST[$column]))
+                    $_POST[$column] = '';
                 if($attributes['type']=='bool')
                 {
                     $vartype = '%d';
                     $value = 0;
-                    if(isset($_POST[$column]))
+                    if(isset($_POST[$column]) && $_POST[$column] == 1)
                         $value = 1;
                 }
                 elseif($attributes['type']=='number')
@@ -962,27 +993,56 @@ class WP_Admin_UI
         }
         else
             $this->error('<strong>Error:</strong> Order has not been updated.');
-        $this->do_hook('post_reorder',$this->insert_id,$data);
+        $this->do_hook('post_reorder',$this->insert_id);
     }
     function field_value ($value,$field_name,$attributes)
     {
         global $wpdb;
-        if('date'==$attributes['type'])
-            $value = date_i18n('Y/m/d',strtotime($value));
-        elseif('time'==$attributes['type'])
-            $value = date_i18n('g:i:s A',strtotime($value));
-        elseif('datetime'==$attributes['type'])
-            $value = date_i18n('Y/m/d g:i:s A',strtotime($value));
+        if('date'==$attributes['type']) {
+            if ('N/A' == $value || '0000-00-00' == $value || '0000-00-00 00:00:00' == $value)
+                $value = 'N/A';
+            else
+                $value = date_i18n('Y/m/d',strtotime($value));
+        }
+        elseif('time'==$attributes['type']) {
+            if ('N/A' == $value || '00:00:00' == $value || '0000-00-00 00:00:00' == $value)
+                $value = 'N/A';
+            else
+                $value = date_i18n('g:i:s A',strtotime($value));
+        }
+        elseif('datetime'==$attributes['type']) {
+            if ('N/A' == $value || '0000-00-00' == $value || '0000-00-00 00:00:00' == $value)
+                $value = 'N/A';
+            else
+                $value = date_i18n('Y/m/d g:i:s A',strtotime($value));
+        }
         elseif('related'==$attributes['type']&&false!==$attributes['related'])
         {
             $column_data = array();
             if(!is_array($attributes['related']))
             {
-                $related = $wpdb->get_results('SELECT `'.$attributes['related_id'].'`,`'.$attributes['related_field'].'` FROM '.$attributes['related'].(!empty($attributes['related_sql'])?' '.$attributes['related_sql']:''));
-                $selected_options = explode(',',$value);
-                foreach($related as $option)
-                    if(in_array($option->{$attributes['related_id']},$selected_options))
-                        $column_data[$option->{$attributes['related_id']}] = $option->{$attributes['related_field']};
+                $selected_options = explode(',', $value);
+                if (!empty($this->related) && isset($this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']]) && !empty($this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']])) {
+                    foreach ($selected_options as $option) {
+                        if ($attributes['related_id'] == $attributes['related_field']) {
+                            if (isset($this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']][$option]))
+                                $column_data[$option] = $option;
+                        }
+                        elseif (in_array($option, $this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']]))
+                            $column_data[$option] = $this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']][$option];
+                    }
+                }
+                if (empty($column_data)) {
+                    $limited = " WHERE `{$attributes['related_id']}` IN (" . implode('", "', $selected_options) . ")";
+                    $related = $wpdb->get_results('SELECT `'.$attributes['related_id'].'`,`'.$attributes['related_field'].'` FROM '.$attributes['related'].(!empty($attributes['related_sql'])?' '.$attributes['related_sql']:$limited));
+                    foreach($related as $option)
+                        if(in_array($option->{$attributes['related_id']}, $selected_options)) {
+                            $column_data[$option->{$attributes['related_id']}] = $option->{$attributes['related_field']};
+                            if (!isset($this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']]))
+                                $this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']] = array();
+                            $this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']][$option->{$attributes['related_id']}] = $option->{$attributes['related_field']};
+                        }
+                }
             }
             else
             {
@@ -997,9 +1057,51 @@ class WP_Admin_UI
         elseif($attributes['type']=='bool')
             $value = ($value==1?'Yes':'No');
         elseif($attributes['type']=='number')
-            $value = intval($value);
+            $value = number_format($value, 0);
         elseif($attributes['type']=='decimal')
-            $value = number_format($value,2);
+            $value = number_format($value, 2);
+        if(false!==$attributes['custom_relate'])
+        {
+            $table = $attributes['custom_relate'];
+            $on = $field_name;
+            $is = $value;
+            $what = array('name');
+            if(is_array($table))
+            {
+                if(isset($table['on']))
+                    $on = $this->sanitize($table['on']);
+                if(isset($table['is'])&&isset($row[$table['is']]))
+                    $is = $this->sanitize($row[$table['is']]);
+                if(isset($table['what']))
+                {
+                    $what = array();
+                    if(is_array($table['what']))
+                    {
+                        foreach($table['what'] as $wha)
+                            $what[] = $this->sanitize($wha);
+                    }
+                    else
+                        $what[] = $this->sanitize($table['what']);
+                }
+                if(isset($table['table']))
+                    $table = $table['table'];
+            }
+            $table = $this->sanitize($table);
+            $wha = implode(',',$what);
+            $sql = "SELECT $wha FROM $table WHERE `$on`='$is'";
+            $results = @current($wpdb->get_results($sql,ARRAY_A));
+            if(!empty($results))
+            {
+                $val = array();
+                foreach($what as $wha)
+                {
+                    if(isset($results[$wha]))
+                        $val[] = $results[$wha];
+                }
+                if(!empty($val))
+                    $value = implode(' ',$val);
+            }
+        }
         return $value;
     }
     function export ()
@@ -1074,6 +1176,10 @@ class WP_Admin_UI
                 $first = true;
                 foreach($this->export_columns as $key=>$attributes)
                 {
+                    if(!is_array($attributes)) {
+                        $key = $attributes;
+                        $attributes = $this->setup_column($key);
+                    }
                     if(false===$attributes['display']&&false===$attributes['export'])
                         continue;
                     if($first)
@@ -1089,6 +1195,10 @@ class WP_Admin_UI
                     $line = array();
                     foreach($this->export_columns as $key=>$attributes)
                     {
+                        if(!is_array($attributes)) {
+                            $key = $attributes;
+                            $attributes = $this->setup_column($key);
+                        }
                         if(false===$attributes['display']&&false===$attributes['export'])
                             continue;
                         $item[$key] = $this->field_value($item[$key],$key,$attributes);
@@ -1110,6 +1220,10 @@ class WP_Admin_UI
                 $first = true;
                 foreach($this->export_columns as $key=>$attributes)
                 {
+                    if(!is_array($attributes)) {
+                        $key = $attributes;
+                        $attributes = $this->setup_column($key);
+                    }
                     if(false===$attributes['display']&&false===$attributes['export'])
                         continue;
                     if($first)
@@ -1125,6 +1239,10 @@ class WP_Admin_UI
                     $line = array();
                     foreach($this->export_columns as $key=>$attributes)
                     {
+                        if(!is_array($attributes)) {
+                            $key = $attributes;
+                            $attributes = $this->setup_column($key);
+                        }
                         if(false===$attributes['display']&&false===$attributes['export'])
                             continue;
                         $item[$key] = $this->field_value($item[$key],$key,$attributes);
@@ -1146,6 +1264,10 @@ class WP_Admin_UI
                 $first = true;
                 foreach($this->export_columns as $key=>$attributes)
                 {
+                    if(!is_array($attributes)) {
+                        $key = $attributes;
+                        $attributes = $this->setup_column($key);
+                    }
                     if(false===$attributes['display']&&false===$attributes['export'])
                         continue;
                     if($first)
@@ -1161,6 +1283,10 @@ class WP_Admin_UI
                     $line = array();
                     foreach($this->export_columns as $key=>$attributes)
                     {
+                        if(!is_array($attributes)) {
+                            $key = $attributes;
+                            $attributes = $this->setup_column($key);
+                        }
                         if(false===$attributes['display']&&false===$attributes['export'])
                             continue;
                         $item[$key] = $this->field_value($item[$key],$key,$attributes);
@@ -1182,6 +1308,10 @@ class WP_Admin_UI
                 $first = true;
                 foreach($this->export_columns as $key=>$attributes)
                 {
+                    if(!is_array($attributes)) {
+                        $key = $attributes;
+                        $attributes = $this->setup_column($key);
+                    }
                     if(false===$attributes['display']&&false===$attributes['export'])
                         continue;
                     if($first)
@@ -1197,6 +1327,10 @@ class WP_Admin_UI
                     $line = array();
                     foreach($this->export_columns as $key=>$attributes)
                     {
+                        if(!is_array($attributes)) {
+                            $key = $attributes;
+                            $attributes = $this->setup_column($key);
+                        }
                         if(false===$attributes['display']&&false===$attributes['export'])
                             continue;
                         $item[$key] = $this->field_value($item[$key],$key,$attributes);
@@ -1219,9 +1353,17 @@ class WP_Admin_UI
                 fwrite($fp,$head);
                 foreach($this->full_data as $item)
                 {
+                    if(!is_array($attributes)) {
+                        $key = $attributes;
+                        $attributes = $this->setup_column($key);
+                    }
                     $line = "\t<item>\r\n";
                     foreach($this->export_columns as $key=>$attributes)
                     {
+                        if(!is_array($attributes)) {
+                            $key = $attributes;
+                            $attributes = $this->setup_column($key);
+                        }
                         if(false===$attributes['display']&&false===$attributes['export'])
                             continue;
                         $item[$key] = $this->field_value($item[$key],$key,$attributes);
@@ -1245,9 +1387,17 @@ class WP_Admin_UI
                 $data = array('items'=>array('count'=>count($this->full_data),'item'=>array()));
                 foreach($this->full_data as $item)
                 {
+                    if(!is_array($attributes)) {
+                        $key = $attributes;
+                        $attributes = $this->setup_column($key);
+                    }
                     $row = array();
                     foreach($this->export_columns as $key=>$attributes)
                     {
+                        if(!is_array($attributes)) {
+                            $key = $attributes;
+                            $attributes = $this->setup_column($key);
+                        }
                         if(false===$attributes['display']&&false===$attributes['export'])
                             continue;
                         $item[$key] = $this->field_value($item[$key],$key,$attributes);
@@ -1294,9 +1444,34 @@ class WP_Admin_UI
         if(false===$this->table&&false===$this->sql)
             return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "table" definition.');
         global $wpdb;
+        $this->sql_count = trim($this->sql_count);
+        if (empty($this->sql_count))
+            $this->sql_count = false;
         if(false===$this->sql)
         {
-            $sql = "SELECT SQL_CALC_FOUND_ROWS * FROM $this->table";
+            $calc_found_sql = 'SQL_CALC_FOUND_ROWS';
+            if ($full || false !== $this->sql_count)
+                $calc_found_sql = '';
+            $totals = '';
+            foreach($this->columns as $key=>$column)
+            {
+                $attributes = $column;
+                if(!is_array($attributes))
+                    $attributes = $this->setup_column($column);
+                if(true!==$attributes['total_field'])
+                    continue;
+                if(is_array($column))
+                    $column = $key;
+                if (!is_array($totals))
+                    $totals = array();
+                $columnfield = '`'.$column.'`';
+                if($attributes['real_name']!==false)
+                    $columnfield = $attributes['real_name'];
+                $totals[] = 'SUM('.$columnfield.') AS `wp_admin_ui_total_'.$this->sanitize($column).'`';
+            }
+            if(is_array($totals))
+                $calc_found_sql .= ' '.implode(',',$totals).', ';
+            $sql = "SELECT {$calc_found_sql} * FROM $this->table";
             $wheresql = $havingsql = $ordersql = $limitsql = '';
             $other_sql = $having_sql = array();
             $selects = array();
@@ -1324,14 +1499,14 @@ class WP_Admin_UI
                     {
                         $attributes = $column;
                         if(!is_array($attributes))
-                            $attributes = array();
+                            $attributes = $this->setup_column($column);
                         if(false===$attributes['search'])
                             continue;
                         if(in_array($attributes['type'],array('date','time','datetime')))
                             continue;
                         if(is_array($column))
                             $column = $key;
-                        if(!isset($this->filters[$column]))
+                        if(isset($this->filters[$column]))
                             continue;
                         $columnfield = '`'.$column.'`';
                         if(isset($selects[$column]))
@@ -1450,8 +1625,8 @@ class WP_Admin_UI
                 $ordersql = trim($this->order.' '.$this->order_dir);
             elseif(false!==$this->reorder&&$this->action=='reorder')
                 $ordersql = trim($this->reorder_order.' '.$this->reorder_order_dir);
-            elseif(stripos($sql,' ORDER BY ')===false)
-                $ordersql = trim($this->identifier);
+            /*elseif(stripos($sql,' ORDER BY ')===false)
+                $ordersql = trim($this->identifier);*/
             if(false!==$this->pagination&&!$full&&stripos($sql,' LIMIT ')===false)
             {
                 $start = ($this->page-1)*$this->limit;
@@ -1467,14 +1642,86 @@ class WP_Admin_UI
             $sql .= $limitsql;
             $sql = str_replace('``','`',$sql);
             $sql = str_replace('  ',' ',$sql);
+            if (false !== $this->sql_count) {
+                $wheresql = $havingsql = $ordersql = $limitsql = '';
+                $sql_count = ' '.str_replace(array("\n","\r",'  '),' ',' '.$this->sql_count).' ';
+                $calc_found_sql = 'SQL_CALC_FOUND_ROWS';
+                if ($full || false !== $this->sql_count)
+                    $calc_found_sql = '';
+                $sql_count = str_ireplace(' SELECT '," SELECT {$calc_found_sql} ",str_ireplace(' SELECT SQL_CALC_FOUND_ROWS ',' SELECT ',$sql_count));
+                if(false!==$this->search&&!empty($this->search_columns))
+                {
+                    if(!empty($other_sql))
+                    {
+                        if(false===stripos($sql_count,' WHERE '))
+                            $wheresql .= ' WHERE ('.implode(' AND ',$other_sql).')';
+                        elseif(empty($wheresql))
+                            $wheresql .= ' AND ('.implode(' AND ',$other_sql).')';
+                        elseif(false===stripos($sql_count,' WHERE %%WHERE%% '))
+                            $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
+                        elseif(false!==stripos($sql_count,' %%WHERE%% '))
+                            $wheresql .= ' AND ('.implode(' AND ',$other_sql).')';
+                        else
+                            $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
+                    }
+                    if(!empty($having_sql))
+                    {
+                        if(false===stripos($sql_count,' HAVING '))
+                            $havingsql .= ' HAVING ('.implode(' AND ',$having_sql).')';
+                        elseif(empty($havingsql))
+                            $havingsql .= ' AND ('.implode(' AND ',$having_sql).')';
+                        elseif(false===stripos($sql_count,' HAVING %%HAVING%% '))
+                            $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
+                        elseif(false!==stripos($sql_count,' %%HAVING%% '))
+                            $havingsql .= ' AND ('.implode(' AND ',$having_sql).')';
+                        else
+                            $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
+                    }
+                }
+                if(!empty($wheresql))
+                    $sql_count .= ' WHERE '.$wheresql;
+                if(!empty($havingsql))
+                    $sql_count .= ' HAVING '.$havingsql;
+                if(!empty($ordersql))
+                    $sql_count .= ' ORDER BY '.$ordersql;
+                if (stripos($sql_count,' LIMIT ')===false)
+                    $sql_count .= 'LIMIT 1';
+                $sql_count = str_replace('``','`',$sql_count);
+                $sql_count = str_replace('  ',' ',$sql_count);
+            }
         }
         else
         {
-            $sql = ' '.str_replace(array("\n","\r"),' ',' '.$this->sql).' ';
-            $sql = str_ireplace(' SELECT ',' SELECT SQL_CALC_FOUND_ROWS ',str_ireplace(' SELECT SQL_CALC_FOUND_ROWS ',' SELECT ',$sql));
+            $sql = ' '.str_replace(array("\n","\r",'  '),' ',' '.$this->sql).' ';
+            $calc_found_sql = 'SQL_CALC_FOUND_ROWS';
+            if ($full || false !== $this->sql_count)
+                $calc_found_sql = '';
+            $totals = '';
+            foreach($this->columns as $key=>$column)
+            {
+                $attributes = $column;
+                if(!is_array($attributes))
+                    $attributes = $this->setup_column($column);
+                if(true!==$attributes['total_field'])
+                    continue;
+                if(is_array($column))
+                    $column = $key;
+                if (!is_array($totals))
+                    $totals = array();
+                $columnfield = '`'.$column.'`';
+                if($attributes['real_name']!==false)
+                    $columnfield = $attributes['real_name'];
+                $totals[] = 'SUM('.$columnfield.') AS `wp_admin_ui_total_'.$this->sanitize($column).'`';
+            }
+            if(is_array($totals))
+                $calc_found_sql .= ' '.implode(',',$totals).', ';
+            $sql = str_ireplace(' SELECT '," SELECT {$calc_found_sql} ",str_ireplace(' SELECT SQL_CALC_FOUND_ROWS ',' SELECT ',$sql));
             $wheresql = $havingsql = $ordersql = $limitsql = '';
             $other_sql = $having_sql = array();
-            preg_match('/SELECT SQL_CALC_FOUND_ROWS (.*) FROM/i',$sql,$selectmatches);
+            if ($full || false !== $this->sql_count)
+                preg_match('/SELECT (.*) FROM/i',$sql,$selectmatches);
+            else
+                preg_match('/SELECT SQL_CALC_FOUND_ROWS (.*) FROM/i',$sql,$selectmatches);
             $selects = array();
             if(isset($selectmatches[1])&&!empty($selectmatches[1])&&stripos($selectmatches[1],' AS ')!==false)
             {
@@ -1500,14 +1747,14 @@ class WP_Admin_UI
                     {
                         $attributes = $column;
                         if(!is_array($attributes))
-                            $attributes = array();
+                            $attributes = $this->setup_column($column);
                         if(false===$attributes['search'])
                             continue;
                         if(in_array($attributes['type'],array('date','time','datetime')))
                             continue;
                         if(is_array($column))
                             $column = $key;
-                        if(!isset($this->filters[$column]))
+                        if(isset($this->filters[$column]))
                             continue;
                         $columnfield = '`'.$column.'`';
                         if(isset($selects[$column]))
@@ -1600,10 +1847,8 @@ class WP_Admin_UI
                     if(false===stripos($sql,' WHERE '))
                         $wheresql .= ' WHERE ('.implode(' AND ',$other_sql).')';
                     elseif(false===stripos($sql,' WHERE %%WHERE%% '))
-                        $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
-                    elseif(false!==stripos($sql,' %%WHERE%% '))
                         $wheresql .= ' AND ('.implode(' AND ',$other_sql).')';
-                    else
+                    elseif(false!==stripos($sql,' %%WHERE%% '))
                         $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
                 }
                 if(!empty($having_sql))
@@ -1611,10 +1856,8 @@ class WP_Admin_UI
                     if(false===stripos($sql,' HAVING '))
                         $havingsql .= ' HAVING ('.implode(' AND ',$having_sql).')';
                     elseif(false===stripos($sql,' HAVING %%HAVING%% '))
-                        $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
-                    elseif(false!==stripos($sql,' %%HAVING%% '))
                         $havingsql .= ' AND ('.implode(' AND ',$having_sql).')';
-                    else
+                    elseif(false!==stripos($sql,' %%HAVING%% '))
                         $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
                 }
             }
@@ -1686,37 +1929,105 @@ class WP_Admin_UI
             $sql = str_replace('%%LIMIT%%',$limitsql,$sql);
             $sql = str_replace('``','`',$sql);
             $sql = str_replace('  ',' ',$sql);
+            if (false !== $this->sql_count) {
+                $wheresql = $havingsql = $ordersql = $limitsql = '';
+                $sql_count = ' '.str_replace(array("\n","\r",'  '),' ',' '.$this->sql_count).' ';
+                $calc_found_sql = 'SQL_CALC_FOUND_ROWS';
+                if ($full || false !== $this->sql_count)
+                    $calc_found_sql = '';
+                $sql_count = str_ireplace(' SELECT '," SELECT {$calc_found_sql} ",str_ireplace(' SELECT SQL_CALC_FOUND_ROWS ',' SELECT ',$sql_count));
+                if(false!==$this->search&&!empty($this->search_columns))
+                {
+                    if(!empty($other_sql))
+                    {
+                        if(false===stripos($sql_count,' WHERE '))
+                            $wheresql .= ' WHERE ('.implode(' AND ',$other_sql).')';
+                        elseif(false===stripos($sql_count,' WHERE %%WHERE%% '))
+                            $wheresql .= ' AND ('.implode(' AND ',$other_sql).')';
+                        elseif(false!==stripos($sql_count,' %%WHERE%% '))
+                            $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
+                    }
+                    if(!empty($having_sql))
+                    {
+                        if(false===stripos($sql_count,' HAVING '))
+                            $havingsql .= ' HAVING ('.implode(' AND ',$having_sql).')';
+                        elseif(false===stripos($sql_count,' HAVING %%HAVING%% '))
+                            $havingsql .= ' AND ('.implode(' AND ',$having_sql).')';
+                        elseif(false!==stripos($sql_count,' %%HAVING%% '))
+                            $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
+                    }
+                }
+                $limitsql .= '1';
+                if(stripos($sql_count,'%%WHERE%%')===false&&stripos($sql_count,' WHERE ')===false)
+                {
+                    if(stripos($sql_count,' GROUP BY ')!==false)
+                        $sql_count = str_replace(' GROUP BY ',' %%WHERE%% GROUP BY ',$sql_count);
+                    elseif(stripos($sql_count,' ORDER BY ')!==false)
+                        $sql_count = str_replace(' ORDER BY ',' %%WHERE%% ORDER BY ',$sql_count);
+                    elseif(stripos($sql_count,' LIMIT ')!==false)
+                        $sql_count = str_replace(' LIMIT ',' %%WHERE%% LIMIT ',$sql_count);
+                    else
+                        $sql_count .= ' %%WHERE%% ';
+                }
+                elseif(stripos($sql_count,'%%WHERE%%')===false)
+                    $sql_count = str_replace(' WHERE ',' WHERE %%WHERE%% ',$sql_count);
+                if(stripos($sql_count,'%%HAVING%%')===false&&stripos($sql_count,' HAVING ')===false)
+                {
+                    if(stripos($sql_count,' ORDER BY ')!==false)
+                        $sql_count = str_replace(' ORDER BY ',' %%HAVING%% ORDER BY ',$sql_count);
+                    elseif(stripos($sql_count,' LIMIT ')!==false)
+                        $sql_count = str_replace(' LIMIT ',' %%HAVING%% LIMIT ',$sql_count);
+                    else
+                        $sql_count .= ' %%HAVING%% ';
+                }
+                elseif(stripos($sql_count,'%%HAVING%%')===false)
+                    $sql_count = str_replace(' HAVING ',' HAVING %%HAVING%% ',$sql_count);
+                if(stripos($sql_count,'%%LIMIT%%')===false&&stripos($sql_count,' LIMIT ')===false&&!empty($limitsql))
+                    $sql_count .= ' LIMIT %%LIMIT%% ';
+                elseif(stripos($sql_count,'%%LIMIT%%')===false)
+                    $sql_count = str_replace(' LIMIT ',' LIMIT %%LIMIT%% ',$sql_count);
+                $sql_count = str_replace('%%WHERE%%',$wheresql,$sql_count);
+                $sql_count = str_replace('%%HAVING%%',$havingsql,$sql_count);
+                $sql_count = str_replace('%%LIMIT%%',$limitsql,$sql_count);
+                $sql_count = str_replace('``','`',$sql_count);
+                $sql_count = str_replace('  ',' ',$sql_count);
+            }
         }
-        //echo "<textarea cols='130' rows='30'>$sql</textarea>";
+        if (current_user_can('manage_options') && isset($_GET['debug']) && 1 == $_GET['debug'])
+            echo "<textarea cols='130' rows='30'>$sql</textarea>";
         if(false!==$this->default_none&&false===$full&&empty($wheresql)&&empty($havingsql))
             return;
         $results = $wpdb->get_results($sql,ARRAY_A);
-        $results = $this->do_hook('get_data',$results,$full);
+        if (current_user_can('manage_options') && isset($_GET['debug']) && 1 == $_GET['debug'])
+            $wpdb->show_errors = true;
         if($full)
             $this->full_data = $results;
         else
             $this->data = $results;
+        $totals = false;
+        if(!empty($results) && is_array($results)) foreach($this->columns as $key=>$column)
+        {
+            if (false===$totals)
+                $totals = @current($results);
+            if (empty($totals) || !is_array($totals))
+                continue;
+            $attributes = $column;
+            if(!is_array($attributes))
+                $attributes = $this->setup_column($column);
+            if(true!==$attributes['total_field'])
+                continue;
+            if(is_array($column))
+                $column = $key;
+            if(false===$this->totals)
+                $this->totals = array();
+            $this->totals[$column] = $totals['wp_admin_ui_total_'.$column];
+        }
+        if(empty($this->columns))
+            $this->catch_columns($full);
         if($full)
-        {
-            if(empty($this->columns)&&!empty($this->full_data))
-            {
-                $data = current($this->full_data);
-                foreach($data as $data_key=>$data_value)
-                    $this->columns[$data_key] = array('label'=>ucwords(str_replace('-',' ',str_replace('_',' ',$data_key))));
-                $this->export_columns = $this->columns;
-            }
             return;
-        }
-        else
-        {
-            if(empty($this->columns)&&!empty($this->data))
-            {
-                $data = current($this->data);
-                foreach($data as $data_key=>$data_value)
-                    $this->columns[$data_key] = array('label'=>ucwords(str_replace('-',' ',str_replace('_',' ',$data_key))));
-                $this->export_columns = $this->columns;
-            }
-        }
+        if (false !== $this->sql_count)
+            $wpdb->query($sql_count);
         $total = @current($wpdb->get_col("SELECT FOUND_ROWS()"));
         $total = $this->do_hook('get_data_total',$total,$full);
         if(is_numeric($total))
@@ -1737,6 +2048,8 @@ class WP_Admin_UI
             echo $this->custom['header']($this);
         if(empty($this->data))
             $this->get_data();
+        if (empty($this->columns))
+            $this->catch_columns();
         if(false!==$this->export&&$this->action=='export')
             $this->export();
         if((!empty($this->data)||false!==$this->search_query||false!==$this->default_none)&&false!==$this->search)
@@ -1821,6 +2134,17 @@ jQuery(document).ready(function(){
             </select>
 <?php
                     }
+                }
+                elseif('bool'==$this->search_columns[$filter]['type'])
+                {
+?>
+            <label for="admin_ui_filter_<?php echo $filter; ?>"><?php echo $this->search_columns[$filter]['filter_label']; ?>:</label>
+            <select name="filter_<?php echo $filter; ?>" id="admin_ui_filter_<?php echo $filter; ?>">
+                <option value="">-- Show All --</option>
+                <option value="1"<?php echo ((1 == $this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default'])) ? ' SELECTED' : ''); ?>>Yes</option>
+                <option value="0"<?php echo (('' != $this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']) && 0 == $this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default'])) ? ' SELECTED' : ''); ?>>No</option>
+            </select>
+<?php
                 }
                 else
                 {
@@ -1934,6 +2258,51 @@ jQuery(document).ready(function(){
     </div>
 <?php
         }
+        if(!empty($this->data) && $reorder != 1 && false !== $this->totals)
+        {
+?>
+<h3 align="center">Totals</h3>
+<table class="widefat fixed admin_ui_table" cellspacing="0"<?php echo ($reorder==1&&$this->reorder?' id="admin_ui_reorder"':''); ?> style="width:auto;margin:0 auto;">
+    <thead>
+        <tr>
+<?php
+            $columns = array();
+            foreach($this->columns as $column=>$attributes)
+            {
+                if(!isset($this->totals[$column]))
+                    continue;
+                $label = ucwords(str_replace('_',' ',$column));
+                if(false!==$this->get_var('label',false,false,$attributes))
+                    $label = $attributes['label'];
+?>
+            <th scope="col" class="manage-column"><?php echo $label; ?></th>
+<?php
+                if($attributes['type']=='number')
+                    $total = intval($this->totals[$column]);
+                elseif($attributes['type']=='decimal')
+                    $total = number_format($this->totals[$column],2);
+                else
+                    $total = $this->totals[$column];
+                $columns[$column] = $total;
+            }
+?>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+<?php
+            foreach($columns as $column=>$total)
+            {
+?>
+            <td><?php echo $total; ?></td>
+<?php
+            }
+?>
+        </tr>
+    </tbody>
+</table>
+<?php
+        }
 ?>
 </div>
 <?php
@@ -1979,6 +2348,10 @@ table.widefat.fixed tbody.sortable tr { height:50px; }
         $columns = array();
         if(!empty($this->$column_index)) foreach($this->columns as $column=>$attributes)
         {
+            if(!is_array($attributes)) {
+                $column = $attributes;
+                $attributes = $this->setup_column($column);
+            }
             if(false===$attributes['display'])
                 continue;
             if(false===$name_column)
@@ -2030,53 +2403,15 @@ table.widefat.fixed tbody.sortable tr { height:50px; }
 <?php
             foreach($columns as $column=>$attributes)
             {
+                if(!is_array($attributes)) {
+                    $column = $attributes;
+                    $attributes = $this->setup_column($column);
+                }
                 if(false===$attributes['display'])
                     continue;
+                $row[$column] = $this->field_value($row[$column], $column, $attributes);
                 if(false!==$attributes['custom_display']&&function_exists("{$attributes['custom_display']}"))
                     $row[$column] = $attributes['custom_display']($row[$column],$row,$this);
-                if(false!==$attributes['custom_relate'])
-                {
-                    global $wpdb;
-                    $table = $attributes['custom_relate'];
-                    $on = $this->identifier;
-                    $is = $row[$this->identifier];
-                    $what = array('name');
-                    if(is_array($table))
-                    {
-                        if(isset($table['on']))
-                            $on = $this->sanitize($table['on']);
-                        if(isset($table['is'])&&isset($row[$table['is']]))
-                            $is = $this->sanitize($row[$table['is']]);
-                        if(isset($table['what']))
-                        {
-                            $what = array();
-                            if(is_array($table['what']))
-                            {
-                                foreach($table['what'] as $wha)
-                                    $what[] = $this->sanitize($wha);
-                            }
-                            else
-                                $what[] = $this->sanitize($table['what']);
-                        }
-                        if(isset($table['table']))
-                            $table = $table['table'];
-                    }
-                    $table = $this->sanitize($table);
-                    $wha = implode(',',$what);
-                    $sql = "SELECT $wha FROM $table WHERE `$on`='$is'";
-                    $value = @current($wpdb->get_results($sql,ARRAY_A));
-                    if(!empty($value))
-                    {
-                        $val = array();
-                        foreach($what as $wha)
-                        {
-                            if(isset($value[$wha]))
-                                $val[] = $value[$wha];
-                        }
-                        if(!empty($val))
-                            $row[$column] = implode(' ',$val);
-                    }
-                }
                 if($attributes['id']=='title')
                 {
                     if($this->view&&($reorder==0||false===$this->reorder))
@@ -2149,60 +2484,43 @@ table.widefat.fixed tbody.sortable tr { height:50px; }
                 elseif('date'==$attributes['type'])
                 {
 ?>
-            <td class="date column-date"><abbr title="<?php echo date_i18n('Y/m/d',strtotime($row[$column])); ?>"><?php echo date_i18n('Y/m/d',strtotime($row[$column])); ?></abbr></td>
+            <td class="date column-date"><abbr title="<?php echo $row[$column]; ?>"><?php echo $row[$column]; ?></abbr></td>
 <?php
                 }
                 elseif('time'==$attributes['type'])
                 {
 ?>
-            <td class="date column-date"><abbr title="<?php echo date_i18n('g:i:s A',strtotime($row[$column])); ?>"><?php echo date_i18n('g:i:s A',strtotime($row[$column])); ?></abbr></td>
+            <td class="date column-date"><abbr title="<?php echo $row[$column]; ?>"><?php echo $row[$column]; ?></abbr></td>
 <?php
                 }
                 elseif('datetime'==$attributes['type'])
                 {
 ?>
-            <td class="date column-date"><abbr title="<?php echo date_i18n('Y/m/d g:i:s A',strtotime($row[$column])); ?>"><?php echo date_i18n('Y/m/d g:i:s A',strtotime($row[$column])); ?></abbr></td>
+            <td class="date column-date"><abbr title="<?php echo $row[$column]; ?>"><?php echo $row[$column]; ?></abbr></td>
 <?php
                 }
                 elseif('related'==$attributes['type']&&false!==$attributes['related'])
                 {
-                    $column_data = array();
-                    if(!is_array($attributes['related']))
-                    {
-                        $related = $wpdb->get_results('SELECT id,`'.$attributes['related_field'].'` FROM '.$attributes['related'].(!empty($attributes['related_sql'])?' '.$attributes['related_sql']:''));
-                        $selected_options = explode(',',$row[$column]);
-                        foreach($related as $option)
-                            if(in_array($option->id,$selected_options))
-                                $column_data[$option->id] = $option->$attributes['related_field'];
-                    }
-                    else
-                    {
-                        $related = $attributes['related'];
-                        $selected_options = explode(',',$row[$column]);
-                        foreach($related as $option_id=>$option)
-                            if(in_array($option_id,$selected_options))
-                                $column_data[$option_id] = $option;
-                    }
 ?>
-            <td class="author column-author"><?php echo implode(', ',$column_data); ?></td>
+            <td class="author column-author"><?php echo $row[$column]; ?></td>
 <?php
                 }
                 elseif($attributes['type']=='bool')
                 {
 ?>
-            <td class="author column-author"><?php echo ($row[$column]==1?'Yes':'No'); ?></td>
+            <td class="author column-author"><?php echo $row[$column]; ?></td>
 <?php
                 }
                 elseif($attributes['type']=='number')
                 {
 ?>
-            <td class="author column-author"><?php echo intval($row[$column]); ?></td>
+            <td class="author column-author"><?php echo $row[$column]; ?></td>
 <?php
                 }
                 elseif($attributes['type']=='decimal')
                 {
 ?>
-            <td class="author column-author"><?php echo number_format($row[$column],2); ?></td>
+            <td class="author column-author"><?php echo $row[$column]; ?></td>
 <?php
                 }
                 else

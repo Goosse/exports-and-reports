@@ -3,8 +3,8 @@ Contributors: sc0ttkclark
 Donate link: http://scottkclark.com/
 Tags: exports, reports, reporting, exporting, csv, tab, xml, json
 Requires at least: 3.0
-Tested up to: 3.1
-Stable tag: 0.4.2
+Tested up to: 3.2.1
+Stable tag: 0.5.1
 
 THIS IS A BETA VERSION - Currently in development - Define custom exports / reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
 
@@ -30,8 +30,30 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 
 == Changelog ==
 
+= 0.5.1 =
+* Feature: Reports menu split from Reports Admin so they're two separate menus now to avoid confusion for users
+* Feature: Ability to reorder Groups so you can choose the order they appear in the menu
+* Feature: Ability to set a separate query for use when getting the 'total' count (for advanced / complex queries which otherwise would be a bad idea to use SQL_CALC_FOUND_ROWS for)
+* Feature: Report field settings now have 'Advanced' section that can be expanded to view advanced settings, otherwise you can use the three simple settings which are 'Field Name', 'Data Type', and 'Label (optional)'
+* Feature: Now when you don't enter ANY fields in the Field Settings area, the report will pick up fields directly from the query for you when you display a report
+* Feature: When making a boolean data type field filterable, a new filter will appear to choose '-- Show All --', 'Yes', and/or 'No'
+* Feature: If you're having trouble with a report, you can enable debug mode by adding debug=1 to the Report URL (must be Administrator)
+* Fix: Date fields that are empty (0000-00-00 00:00:00) will now show 'N/A' instead
+* Fix: Related fields have better handling for SQL building
+* Fix: No longer using default ORDER BY when no ORDER BY is found in SQL, causing issues with tables that didn't have a field 'id' set
+* Fix: Smarter WHERE and HAVING dynamic building
+* Fix: Lots of PHP warnings / notice cleanups and general code tweaks to plugin and WP_Admin_UI class
+
 = 0.4.2 =
-* Many bug fixes and new features.. Full Documentation soon to come!
+* Feature: Revamped Field editor within Report editor, now advanced options collapsed by default and has main fields available for easy edit
+* Feature: Added ability to set the a field's filter default value
+* Feature: Added additional 'related' field type options (where/order by SQL, related ON field)
+* Feature: Added 'default_none' option to DB and Report editor, which allows you to default a report to show no results until a search / filter is done, exports clicked will continue to generate the full export before search and/or filtering
+* Feature: EXPORTS_REPORTS_DISABLE_MENU constant added to disable the menu from being output completely (aside from the normal exports_reports_* capabilities you can define under user roles
+* Fix: Added comments to SQL Query field in Report editor to explain advanced %%TAGS%% which can be used
+* Fix: Reports list now ordered by Group then Weight (same for reordering)
+* Fix: Forcing version to be int instead of text when getting version from DB
+* Fix: Various minor bug fixes to plugin and WP Admin UI class
 
 = 0.3.3 =
 * Bug fix for SQL (another)
@@ -105,12 +127,12 @@ Scott Kingsley Clark from SKC Development -- Scott specializes in WordPress and 
 * Create and Manage Groups
 * Create and Manage Reports
 * Limit which User Roles have access to a Group or Report
-* Filter by Date
 * Ability to clear entire export directory (based on logged export files)
 * Daily Export Cleanup via wp_cron
-* Admin.class.php - A class for plugins to manage data using the WordPress UI appearance
+* WP Admin UI - A class for plugins to manage data using the WordPress UI appearance
 
 = Reporting =
+* Filter by Date
 * Automatic Pagination
 * Show only the fields you want to show
 * Pre-display modification through custom defined function per field or row
