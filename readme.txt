@@ -45,7 +45,6 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 * Fix: Lots of PHP warnings / notice cleanups and general code tweaks to plugin and WP_Admin_UI class
 
 = 0.4.2 =
-* Feature: Revamped Field editor within Report editor, now advanced options collapsed by default and has main fields available for easy edit
 * Feature: Added ability to set the a field's filter default value
 * Feature: Added additional 'related' field type options (where/order by SQL, related ON field)
 * Feature: Added 'default_none' option to DB and Report editor, which allows you to default a report to show no results until a search / filter is done, exports clicked will continue to generate the full export before search and/or filtering
@@ -94,7 +93,16 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 * Fix: Lots of PHP warnings / notice cleanups and general code tweaks to plugin and WP_Admin_UI class
 
 = 0.4.2 =
-* Many bug fixes and new features.. Full Documentation soon to come!
+
+= 0.4.2 =
+* Feature: Added ability to set the a field's filter default value
+* Feature: Added additional 'related' field type options (where/order by SQL, related ON field)
+* Feature: Added 'default_none' option to DB and Report editor, which allows you to default a report to show no results until a search / filter is done, exports clicked will continue to generate the full export before search and/or filtering
+* Feature: EXPORTS_REPORTS_DISABLE_MENU constant added to disable the menu from being output completely (aside from the normal exports_reports_* capabilities you can define under user roles
+* Fix: Added comments to SQL Query field in Report editor to explain advanced %%TAGS%% which can be used
+* Fix: Reports list now ordered by Group then Weight (same for reordering)
+* Fix: Forcing version to be int instead of text when getting version from DB
+* Fix: Various minor bug fixes to plugin and WP Admin UI class
 
 = 0.3.3 =
 * Bug fix for SQL (another)

@@ -255,7 +255,7 @@ function exports_reports_reports ()
     $roles = exports_reports_get_roles();
     $form_columns['role_access'] = array('label'=>'WP Roles with Access','type'=>'related','related'=>$roles,'related_multiple'=>true);
     $form_columns['sql_query'] = array('label'=>'SQL Query','type'=>'desc','comments'=>'Available Variables: %%WHERE%% %%HAVING%% %%ORDERBY%% %%LIMIT%%<br />(example: WHERE %%WHERE%% my_field=1)');
-    $form_columns['sql_query_count'] = array('label'=>'SQL Query (count)','type'=>'desc','comments'=>'For advanced queries to only SELECT minimal variables.<br />Available Variables: %%WHERE%% %%HAVING%%<br />(example: WHERE %%WHERE%% my_field=1)');
+    $form_columns['sql_query_count'] = array('label'=>'SQL Query for Count (advanced, optional)','type'=>'desc','comments'=>'For advanced/complex queries above, you can SELECT minimal fields here for better "Total Count" performance.<br />Available Variables: %%WHERE%% %%HAVING%%<br />(example: WHERE %%WHERE%% my_field=1)');
     $form_columns['field_data'] = array('label'=>'Fields (optional)','custom_input'=>'exports_reports_report_field','custom_save'=>'exports_reports_report_field_save');
     $admin = new WP_Admin_UI(array('reorder'=>'weight','reorder_order'=>'`group` ASC,`weight`','order'=>'`group` ASC,`weight`','order_dir'=>'ASC','css'=>EXPORTS_REPORTS_URL.'assets/admin.css','item'=>'Report','items'=>'Reports','table'=>EXPORTS_REPORTS_TBL.'reports','columns'=>$columns,'form_columns'=>$form_columns,'icon'=>EXPORTS_REPORTS_URL.'assets/icons/32.png','duplicate'=>true));
     $admin->go();
