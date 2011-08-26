@@ -79,6 +79,20 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 
 == Upgrade Notice ==
 
+= 0.5.1 =
+* Feature: Reports menu split from Reports Admin so they're two separate menus now to avoid confusion for users
+* Feature: Ability to reorder Groups so you can choose the order they appear in the menu
+* Feature: Ability to set a separate query for use when getting the 'total' count (for advanced / complex queries which otherwise would be a bad idea to use SQL_CALC_FOUND_ROWS for)
+* Feature: Report field settings now have 'Advanced' section that can be expanded to view advanced settings, otherwise you can use the three simple settings which are 'Field Name', 'Data Type', and 'Label (optional)'
+* Feature: Now when you don't enter ANY fields in the Field Settings area, the report will pick up fields directly from the query for you when you display a report
+* Feature: When making a boolean data type field filterable, a new filter will appear to choose '-- Show All --', 'Yes', and/or 'No'
+* Feature: If you're having trouble with a report, you can enable debug mode by adding debug=1 to the Report URL (must be Administrator)
+* Fix: Date fields that are empty (0000-00-00 00:00:00) will now show 'N/A' instead
+* Fix: Related fields have better handling for SQL building
+* Fix: No longer using default ORDER BY when no ORDER BY is found in SQL, causing issues with tables that didn't have a field 'id' set
+* Fix: Smarter WHERE and HAVING dynamic building
+* Fix: Lots of PHP warnings / notice cleanups and general code tweaks to plugin and WP_Admin_UI class
+
 = 0.4.2 =
 * Many bug fixes and new features.. Full Documentation soon to come!
 
