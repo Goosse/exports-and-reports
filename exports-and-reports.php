@@ -3,14 +3,14 @@
 Plugin Name: Exports and Reports
 Plugin URI: http://scottkclark.com/wordpress/exports-and-reports/
 Description: Define custom exports / reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
-Version: 0.5.1
+Version: 0.5.2
 Author: Scott Kingsley Clark
 Author URI: http://scottkclark.com/
 */
 
 global $wpdb;
 define('EXPORTS_REPORTS_TBL',$wpdb->prefix.'exportsreports_');
-define('EXPORTS_REPORTS_VERSION','051');
+define('EXPORTS_REPORTS_VERSION','052');
 define('EXPORTS_REPORTS_URL',plugin_dir_url(__FILE__));
 define('EXPORTS_REPORTS_DIR',plugin_dir_path(__FILE__));
 define('EXPORTS_REPORTS_EXPORT_DIR',WP_CONTENT_DIR.'/exports');
@@ -239,6 +239,10 @@ function exports_reports_groups ()
 }
 function exports_reports_reports ()
 {
+    if (!wp_script_is('jquery-ui-core', 'queue') && !wp_script_is('jquery-ui-core', 'to_do') && !wp_script_is('jquery-ui-core', 'done'))
+        wp_print_scripts('jquery-ui-core');
+    if (!wp_script_is('jquery-ui-sortable', 'queue') && !wp_script_is('jquery-ui-sortable', 'to_do') && !wp_script_is('jquery-ui-sortable', 'done'))
+        wp_print_scripts('jquery-ui-sortable');
     require_once EXPORTS_REPORTS_DIR.'wp-admin-ui/Admin.class.php';
     $columns = array('name','group'=>array('label'=>'Group','type'=>'related','related'=>EXPORTS_REPORTS_TBL.'groups'),'disabled'=>array('label'=>'Disabled','type'=>'bool'),'created'=>array('label'=>'Date Created','type'=>'datetime'),'updated'=>array('label'=>'Last Modified','type'=>'datetime'));
     $columns['created']['filter'] = true;

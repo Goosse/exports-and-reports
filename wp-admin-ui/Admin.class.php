@@ -10,7 +10,7 @@ if(!is_object($wpdb))
     ob_end_clean();
 }
 // FOR EXPORTS ONLY
-if(isset($_GET['download'])&&!isset($_GET['page'])&&is_user_logged_in())
+if(isset($_GET['download']) && !isset($_GET['page']) && is_user_logged_in() && isset($_GET['_wpnonce']) && false === wp_verify_nonce($_GET['_wpnonce'], 'wp-admin-ui-export'))
 {
     do_action('wp_admin_ui_export_download');
     $file = WP_CONTENT_DIR.'/exports/'.str_replace('/','',$_GET['export']);
@@ -44,7 +44,7 @@ if(isset($_GET['download'])&&!isset($_GET['page'])&&is_user_logged_in())
  *
  * @package Admin UI for Plugins
  *
- * @version 1.9
+ * @version 1.9.1
  * @author Scott Kingsley Clark
  * @link http://scottkclark.com/
  *
@@ -121,7 +121,7 @@ class WP_Admin_UI
         $options = $this->do_hook('options',$options);
         $this->base_url = WP_CONTENT_URL.str_replace(WP_CONTENT_DIR,'',__FILE__);
         $this->export_dir = WP_CONTENT_DIR.'/exports';
-        $this->export_url = $this->base_url.'?download=1&export=';
+        $this->export_url = $this->base_url.'?download=1&_wpnonce='.wp_create_nonce('wp-admin-ui-export').'&export=';
         $this->assets_url = str_replace('/Admin.class.php','',$this->base_url).'/assets';
         if(false!==$this->get_var('id'))
             $this->id = $_GET['id'];
@@ -218,6 +218,15 @@ class WP_Admin_UI
             return $args[1];
         return false;
     }
+
+    /**
+     * @param array $array
+     * @param array $allowed
+     * @param string $url
+     * @param bool $exclusive
+     *
+     * @return string
+     */
     function var_update ($array=false,$allowed=false,$url=false,$exclusive=false)
     {
         $excluded = array('do','id','pg','search_query','order','order_dir','limit','action','export','export_type','export_delimiter','remove_export','updated','duplicate');
@@ -499,6 +508,7 @@ class WP_Admin_UI
 ?>
 	<div id="message" class="error fade"><p><?php echo $msg; ?></p></div>
 <?php
+        return false;
     }
     function go ()
     {
@@ -512,7 +522,7 @@ class WP_Admin_UI
 <?php
         }
         if(isset($this->custom[$this->action])&&function_exists("{$this->custom[$this->action]}"))
-            $this->custom[$this->action]($this);
+            call_user_func( $this->custom[$this->action], $this );
         elseif($this->action=='add'&&$this->add)
         {
             if($this->do=='create'&&$this->save&&!empty($_POST))
@@ -585,7 +595,7 @@ class WP_Admin_UI
             $duplicate = 0;
         $this->do_hook('edit',$duplicate);
         if(isset($this->custom['edit'])&&function_exists("{$this->custom['edit']}"))
-            $this->custom['edit']($this,$duplicate);
+            call_user_func( $this->custom['edit'], $this, $duplicate);
 ?>
 <div class="wrap">
     <div id="icon-edit-pages" class="icon32"<?php if(false!==$this->icon){ ?> style="background-position:0 0;background-image:url(<?php echo $this->icon; ?>);"<?php } ?>><br /></div>
@@ -598,7 +608,7 @@ class WP_Admin_UI
     {
         $this->do_hook('form',$create,$duplicate);
         if(isset($this->custom['form'])&&function_exists("{$this->custom['form']}"))
-            return $this->custom['form']($this,$create);
+            return call_user_func( $this->custom['form'],$this,$create);
         if(false===$this->table&&false===$this->sql)
             return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "table" definition.');
         global $wpdb;
@@ -757,7 +767,7 @@ class WP_Admin_UI
     {
         $this->do_hook('view');
         if(isset($this->custom['view'])&&function_exists("{$this->custom['view']}"))
-            return $this->custom['view']($this);
+            return call_user_func($this->custom['view'],$this);
         if(false===$this->table&&false===$this->sql)
             return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "table" definition.');
         global $wpdb;
@@ -816,7 +826,7 @@ class WP_Admin_UI
                     $this->row[$column] = array();
                     if(!is_array($attributes['related']))
                     {
-                        $related = $wpdb->get_results('SELECT id,`'.(string) $attributes['related_field'].'` FROM '.(string) $attributes['related'].' WHERE id IN ('.(string) $old_value.')'.(!empty($attributes['related_sql'])?' '.(string) $attributes['related_sql']:''));
+                        $related = $wpdb->get_results('SELECT `id`,`'.(string) $attributes['related_field'].'` FROM '.(string) $attributes['related'].' WHERE `id` IN ('.(string) $old_value.')'.(!empty($attributes['related_sql'])?' '.(string) $attributes['related_sql']:''));
                         foreach($related as $option)
                         {
                             $this->row[$column][] = $option->$attributes['related_field'];
@@ -864,7 +874,7 @@ class WP_Admin_UI
     {
         $this->do_hook('pre_delete',$id);
         if(isset($this->custom['delete'])&&function_exists("{$this->custom['delete']}"))
-            return $this->custom['delete']($this);
+            return call_user_func( $this->custom['delete'],$this);
         if(false===$this->table&&false===$this->sql)
             return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "table" definition.');
         if(false===$this->id&&false===$id)
@@ -883,7 +893,7 @@ class WP_Admin_UI
     {
         $this->do_hook('pre_save',$create);
         if(isset($this->custom['save'])&&function_exists("{$this->custom['save']}"))
-            return $this->custom['save']($this,$create);
+            return call_user_func( $this->custom['save'],$this,$create);
         global $wpdb;
         $action = 'saved';
         if($create==1)
@@ -979,7 +989,7 @@ class WP_Admin_UI
     {
         $this->do_hook('pre_reorder');
         if(isset($this->custom['reorder'])&&function_exists("{$this->custom['reorder']}"))
-            return $this->custom['reorder']($this);
+            return call_user_func( $this->custom['reorder'],$this);
         global $wpdb;
         if(false===$this->table)
             return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "table" definition.');
@@ -1021,7 +1031,7 @@ class WP_Admin_UI
             $column_data = array();
             if(!is_array($attributes['related']))
             {
-                $selected_options = explode(',', $value);
+                $selected_options = explode(',', trim($value));
                 if (!empty($this->related) && isset($this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']]) && !empty($this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']])) {
                     foreach ($selected_options as $option) {
                         if ($attributes['related_id'] == $attributes['related_field']) {
@@ -1032,8 +1042,8 @@ class WP_Admin_UI
                             $column_data[$option] = $this->related[$attributes['related'] . '_' . $attributes['related_field'] . '_' . $attributes['related_id']][$option];
                     }
                 }
-                if (empty($column_data)) {
-                    $limited = " WHERE `{$attributes['related_id']}` IN (" . implode('", "', $selected_options) . ")";
+                if (empty($column_data) && !empty($selected_options)) {
+                    $limited = " WHERE `{$attributes['related_id']}` IN ('" . implode("', '", $selected_options) . "')";
                     $related = $wpdb->get_results('SELECT `'.$attributes['related_id'].'`,`'.$attributes['related_field'].'` FROM '.$attributes['related'].(!empty($attributes['related_sql'])?' '.$attributes['related_sql']:$limited));
                     foreach($related as $option)
                         if(in_array($option->{$attributes['related_id']}, $selected_options)) {
@@ -1124,7 +1134,7 @@ class WP_Admin_UI
         }
         global $wp_filesystem;
         if(isset($this->custom['export'])&&function_exists("{$this->custom['export']}"))
-            return $this->custom['export']($this);
+            return call_user_func( $this->custom['export'],$this);
         if(empty($this->full_data))
             $this->get_data(true);
         $dir = dirname($this->export_dir);
@@ -1353,10 +1363,6 @@ class WP_Admin_UI
                 fwrite($fp,$head);
                 foreach($this->full_data as $item)
                 {
-                    if(!is_array($attributes)) {
-                        $key = $attributes;
-                        $attributes = $this->setup_column($key);
-                    }
                     $line = "\t<item>\r\n";
                     foreach($this->export_columns as $key=>$attributes)
                     {
@@ -1387,10 +1393,6 @@ class WP_Admin_UI
                 $data = array('items'=>array('count'=>count($this->full_data),'item'=>array()));
                 foreach($this->full_data as $item)
                 {
-                    if(!is_array($attributes)) {
-                        $key = $attributes;
-                        $attributes = $this->setup_column($key);
-                    }
                     $row = array();
                     foreach($this->export_columns as $key=>$attributes)
                     {
@@ -1423,7 +1425,7 @@ class WP_Admin_UI
     function get_row ($id=false)
     {
         if(isset($this->custom['row'])&&function_exists("{$this->custom['row']}"))
-            return $this->custom['row']($this);
+            return call_user_func( $this->custom['row'],$this);
         if(false===$this->table&&false===$this->sql)
             return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "table" definition.');
         if(false===$this->id&&false===$id)
@@ -1440,7 +1442,7 @@ class WP_Admin_UI
     function get_data ($full=false)
     {
         if(isset($this->custom['data'])&&function_exists("{$this->custom['data']}"))
-            return $this->custom['data']($this);
+            return call_user_func( $this->custom['data'],$this);
         if(false===$this->table&&false===$this->sql)
             return $this->error('<strong>Error:</strong> Invalid Configuration - Missing "table" definition.');
         global $wpdb;
@@ -1471,122 +1473,148 @@ class WP_Admin_UI
             }
             if(is_array($totals))
                 $calc_found_sql .= ' '.implode(',',$totals).', ';
-            $sql = "SELECT {$calc_found_sql} * FROM $this->table";
-            $wheresql = $havingsql = $ordersql = $limitsql = '';
-            $other_sql = $having_sql = array();
-            $selects = array();
-            if(isset($selectmatches[1])&&!empty($selectmatches[1])&&stripos($selectmatches[1],' AS ')!==false)
+            $this->sql = "SELECT {$calc_found_sql} * FROM $this->table";
+        }
+        $sql = ' '.str_replace(array("\n","\r",'  '),' ',' '.$this->sql).' ';
+        $calc_found_sql = 'SQL_CALC_FOUND_ROWS';
+        if ($full || false !== $this->sql_count)
+            $calc_found_sql = '';
+        $totals = '';
+        foreach($this->columns as $key=>$column)
+        {
+            $attributes = $column;
+            if(!is_array($attributes))
+                $attributes = $this->setup_column($column);
+            if(true!==$attributes['total_field'])
+                continue;
+            if(is_array($column))
+                $column = $key;
+            if (!is_array($totals))
+                $totals = array();
+            $columnfield = '`'.$column.'`';
+            if($attributes['real_name']!==false)
+                $columnfield = $attributes['real_name'];
+            $totals[] = 'SUM('.$columnfield.') AS `wp_admin_ui_total_'.$this->sanitize($column).'`';
+        }
+        if(is_array($totals))
+            $calc_found_sql .= ' '.implode(',',$totals).', ';
+        $sql = str_ireplace(' SELECT '," SELECT {$calc_found_sql} ",str_ireplace(' SELECT SQL_CALC_FOUND_ROWS ',' SELECT ',$sql));
+        $wheresql = $havingsql = $ordersql = $limitsql = '';
+        $other_sql = $having_sql = array();
+        if ($full || false !== $this->sql_count)
+            preg_match('/SELECT (.*) FROM/i',$sql,$selectmatches);
+        else
+            preg_match('/SELECT SQL_CALC_FOUND_ROWS (.*) FROM/i',$sql,$selectmatches);
+        $selects = array();
+        if(isset($selectmatches[1])&&!empty($selectmatches[1])&&stripos($selectmatches[1],' AS ')!==false)
+        {
+            $theselects = explode(', ',$selectmatches[1]);
+            if(empty($theselects))
+                $theselects = explode(',',$selectmatches[1]);
+            foreach($theselects as $selected)
             {
-                $theselects = explode(', ',$selectmatches[1]);
-                if(empty($theselects))
-                    $theselects = explode(',',$selectmatches[1]);
-                foreach($theselects as $selected)
+                $selectfield = explode(' AS ',$selected);
+                if(count($selectfield)==2)
                 {
-                    $selectfield = explode(' AS ',$selected);
-                    if(count($selectfield)==2)
-                    {
-                        $field = trim(trim($selectfield[1]),'`');
-                        $real_field = trim(trim($selectfield[0]),'`');
-                        $selects[$field] = $real_field;
-                    }
+                    $field = trim(trim($selectfield[1]),'`');
+                    $real_field = trim(trim($selectfield[0]),'`');
+                    $selects[$field] = $real_field;
                 }
             }
-            if(false!==$this->search&&!empty($this->search_columns))
+        }
+        if(false!==$this->search&&!empty($this->search_columns))
+        {
+            if(false!==$this->search_query&&0<strlen($this->search_query))
             {
-                if(false!==$this->search_query&&0<strlen($this->search_query))
+                foreach($this->search_columns as $key=>$column)
                 {
-                    foreach($this->search_columns as $key=>$column)
+                    $attributes = $column;
+                    if(!is_array($attributes))
+                        $attributes = $this->setup_column($column);
+                    if(false===$attributes['search'])
+                        continue;
+                    if(in_array($attributes['type'],array('date','time','datetime')))
+                        continue;
+                    if(is_array($column))
+                        $column = $key;
+                    if(isset($this->filters[$column]))
+                        continue;
+                    $columnfield = '`'.$column.'`';
+                    if(isset($selects[$column]))
+                        $columnfield = '`'.$selects[$column].'`';
+                    if($attributes['real_name']!==false)
+                        $columnfield = $attributes['real_name'];
+                    if($attributes['group_related']!==false)
+                        $having_sql[] = "$columnfield LIKE '%".$this->sanitize($this->search_query)."%'";
+                    else
+                        $other_sql[] = "$columnfield LIKE '%".$this->sanitize($this->search_query)."%'";
+                }
+                if(!empty($other_sql))
+                {
+                    $other_sql = array('('.implode(' OR ',$other_sql).')');
+                }
+                if(!empty($having_sql))
+                {
+                    $having_sql = array('('.implode(' OR ',$having_sql).')');
+                }
+            }
+            foreach($this->filters as $filter)
+            {
+                if(!isset($this->search_columns[$filter]))
+                    continue;
+                $filterfield = '`'.$filter.'`';
+                if(isset($selects[$filter]))
+                    $filterfield = '`'.$selects[$filter].'`';
+                if($this->search_columns[$filter]['real_name']!==false)
+                    $filterfield = $this->search_columns[$filter]['real_name'];
+                if(in_array($this->search_columns[$filter]['type'],array('date','datetime')))
+                {
+                    $start = date_i18n('Y-m-d').($this->search_columns[$filter]['type']=='datetime'?' 00:00:00':'');
+                    $end = date_i18n('Y-m-d').($this->search_columns[$filter]['type']=='datetime'?' 23:59:59':'');
+                    if(strlen($this->get_var('filter_'.$filter.'_start',$this->search_columns[$filter]['filter_default']))<1&&strlen($this->get_var('filter_'.$filter.'_end',$this->search_columns[$filter]['filter_ongoing_default']))<1)
+                        continue;
+                    if(0<strlen($this->get_var('filter_'.$filter.'_start',$this->search_columns[$filter]['filter_default'])))
+                        $start = date_i18n('Y-m-d',strtotime($this->get_var('filter_'.$filter.'_start',$this->search_columns[$filter]['filter_default']))).($this->search_columns[$filter]['type']=='datetime'?' 00:00:00':'');
+                    if(0<strlen($this->get_var('filter_'.$filter.'_end',$this->search_columns[$filter]['filter_ongoing_default'])))
+                        $end = date_i18n('Y-m-d',strtotime($this->get_var('filter_'.$filter.'_end',$this->search_columns[$filter]['filter_ongoing_default']))).($this->search_columns[$filter]['type']=='datetime'?' 23:59:59':'');
+                    if(false!==$this->search_columns[$filter]['date_ongoing'])
                     {
-                        $attributes = $column;
-                        if(!is_array($attributes))
-                            $attributes = $this->setup_column($column);
-                        if(false===$attributes['search'])
-                            continue;
-                        if(in_array($attributes['type'],array('date','time','datetime')))
-                            continue;
-                        if(is_array($column))
-                            $column = $key;
-                        if(isset($this->filters[$column]))
-                            continue;
-                        $columnfield = '`'.$column.'`';
-                        if(isset($selects[$column]))
-                            $columnfield = '`'.$selects[$column].'`';
-                        if($attributes['real_name']!==false)
-                            $columnfield = $attributes['real_name'];
-                        if($attributes['group_related']!==false)
-                            $having_sql[] = "$columnfield LIKE '%".$this->sanitize($this->search_query)."%'";
+                        $date_ongoing = $this->search_columns[$filter]['date_ongoing'];
+                        if(isset($selects[$date_ongoing]))
+                            $date_ongoing = $selects[$date_ongoing];
+                        if($this->search_columns[$filter]['group_related']!==false)
+                            $having_sql[] = "(($filterfield <= '$start' OR ($filterfield >= '$start' AND $filterfield <= '$end')) AND ($date_ongoing >= '$start' OR ($date_ongoing >= '$start' AND $date_ongoing <= '$end')))";
                         else
-                            $other_sql[] = "$columnfield LIKE '%".$this->sanitize($this->search_query)."%'";
+                            $other_sql[] = "(($filterfield <= '$start' OR ($filterfield >= '$start' AND $filterfield <= '$end')) AND ($date_ongoing >= '$start' OR ($date_ongoing >= '$start' AND $date_ongoing <= '$end')))";
                     }
-                    if(!empty($other_sql))
+                    else
                     {
-                        $other_sql = array('('.implode(' OR ',$other_sql).')');
-                    }
-                    if(!empty($having_sql))
-                    {
-                        $having_sql = array('('.implode(' OR ',$having_sql).')');
+                        if($this->search_columns[$filter]['group_related']!==false)
+                            $having_sql[] = "($filterfield BETWEEN '$start' AND '$end')";
+                        else
+                            $other_sql[] = "($filterfield BETWEEN '$start' AND '$end')";
                     }
                 }
-                foreach($this->filters as $filter)
+                elseif(0<strlen($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))&&'related'==$this->search_columns[$filter]['type']&&false!==$this->search_columns[$filter]['related'])
                 {
-                    if(!isset($this->search_columns[$filter]))
-                        continue;
-                    $filterfield = '`'.$filter.'`';
-                    if(isset($selects[$filter]))
-                        $filterfield = '`'.$selects[$filter].'`';
-                    if($this->search_columns[$filter]['real_name']!==false)
-                        $filterfield = $this->search_columns[$filter]['real_name'];
-                    if(in_array($this->search_columns[$filter]['type'],array('date','datetime')))
+                    if(!is_array($this->search_columns[$filter]['related']))
                     {
-                        $start = date_i18n('Y-m-d').($this->search_columns[$filter]['type']=='datetime'?' 00:00:00':'');
-                        $end = date_i18n('Y-m-d').($this->search_columns[$filter]['type']=='datetime'?' 23:59:59':'');
-                        if(strlen($this->get_var('filter_'.$filter.'_start',$this->search_columns[$filter]['filter_default']))<1&&strlen($this->get_var('filter_'.$filter.'_end',$this->search_columns[$filter]['filter_ongoing_default']))<1)
-                            continue;
-                        if(0<strlen($this->get_var('filter_'.$filter.'_start',$this->search_columns[$filter]['filter_default'])))
-                            $start = date_i18n('Y-m-d',strtotime($this->get_var('filter_'.$filter.'_start',$this->search_columns[$filter]['filter_default']))).($this->search_columns[$filter]['type']=='datetime'?' 00:00:00':'');
-                        if(0<strlen($this->get_var('filter_'.$filter.'_end',$this->search_columns[$filter]['filter_ongoing_default'])))
-                            $end = date_i18n('Y-m-d',strtotime($this->get_var('filter_'.$filter.'_end',$this->search_columns[$filter]['filter_ongoing_default']))).($this->search_columns[$filter]['type']=='datetime'?' 23:59:59':'');
-                        if(false!==$this->search_columns[$filter]['date_ongoing'])
-                        {
-                            $date_ongoing = $this->search_columns[$filter]['date_ongoing'];
-                            if(isset($selects[$date_ongoing]))
-                                $date_ongoing = $selects[$date_ongoing];
-                            if($this->search_columns[$filter]['group_related']!==false)
-                                $having_sql[] = "(($filterfield <= '$start' OR ($filterfield >= '$start' AND $filterfield <= '$end')) AND ($date_ongoing >= '$start' OR ($date_ongoing >= '$start' AND $date_ongoing <= '$end')))";
-                            else
-                                $other_sql[] = "(($filterfield <= '$start' OR ($filterfield >= '$start' AND $filterfield <= '$end')) AND ($date_ongoing >= '$start' OR ($date_ongoing >= '$start' AND $date_ongoing <= '$end')))";
-                        }
+                        $search_value = $this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']));
+                        if(intval($search_value)<0)
+                            $search_value = "'".$search_value."'";
                         else
-                        {
-                            if($this->search_columns[$filter]['group_related']!==false)
-                                $having_sql[] = "($filterfield BETWEEN '$start' AND '$end')";
-                            else
-                                $other_sql[] = "($filterfield BETWEEN '$start' AND '$end')";
-                        }
-                    }
-                    elseif(0<strlen($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))&&'related'==$this->search_columns[$filter]['type']&&false!==$this->search_columns[$filter]['related'])
-                    {
-                        if(!is_array($this->search_columns[$filter]['related']))
-                        {
-                            $search_value = $this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']));
-                            if(intval($search_value)<0)
-                                $search_value = "'".$search_value."'";
-                            else
-                                $search_value = intval($search_value);
-                            if($this->search_columns[$filter]['group_related']!==false)
-                                $having_sql[] = "`".$this->search_columns[$filter]['related']."`.`".$this->search_columns[$filter]['related_id']."` = $search_value";
-                            else
-                                $other_sql[] = "`".$this->search_columns[$filter]['related']."`.`".$this->search_columns[$filter]['related_id']."` = $search_value";
-                        }
+                            $search_value = intval($search_value);
+                        $related_filterfield = '`'.$filter.'`.`'.$this->search_columns[$filter]['related_id'].'`';
+                        if(isset($selects[$filter]))
+                            $related_filterfield = '`'.$selects[$filter].'`.`'.$this->search_columns[$filter]['related_id'].'`';
+                        if($this->search_columns[$filter]['real_name']!==false)
+                            $related_filterfield = $this->search_columns[$filter]['real_name'];
+                        if($this->search_columns[$filter]['group_related']!==false)
+                            $having_sql[] = "{$related_filterfield} = {$search_value}";
                         else
-                        {
-                            if($this->search_columns[$filter]['group_related']!==false)
-                                $having_sql[] = "$filterfield LIKE '%".$this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))."%'";
-                            else
-                                $other_sql[] = "$filterfield LIKE '%".$this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))."%'";
-                        }
+                            $other_sql[] = "{$related_filterfield} = {$search_value}";
                     }
-                    elseif(0<strlen($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default'])))
+                    else
                     {
                         if($this->search_columns[$filter]['group_related']!==false)
                             $having_sql[] = "$filterfield LIKE '%".$this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))."%'";
@@ -1594,408 +1622,165 @@ class WP_Admin_UI
                             $other_sql[] = "$filterfield LIKE '%".$this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))."%'";
                     }
                 }
-                if(!empty($other_sql))
+                elseif(0<strlen($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default'])))
                 {
-                    if(false===stripos($sql,' WHERE '))
-                        $wheresql .= ' WHERE ('.implode(' AND ',$other_sql).')';
-                    elseif(empty($wheresql))
-                        $wheresql .= ' AND ('.implode(' AND ',$other_sql).')';
-                    elseif(false===stripos($sql,' WHERE %%WHERE%% '))
-                        $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
-                    elseif(false!==stripos($sql,' %%WHERE%% '))
-                        $wheresql .= ' AND ('.implode(' AND ',$other_sql).')';
+                    if($this->search_columns[$filter]['group_related']!==false)
+                        $having_sql[] = "$filterfield LIKE '%".$this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))."%'";
                     else
-                        $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
-                }
-                if(!empty($having_sql))
-                {
-                    if(false===stripos($sql,' HAVING '))
-                        $havingsql .= ' HAVING ('.implode(' AND ',$having_sql).')';
-                    elseif(empty($havingsql))
-                        $havingsql .= ' AND ('.implode(' AND ',$having_sql).')';
-                    elseif(false===stripos($sql,' HAVING %%HAVING%% '))
-                        $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
-                    elseif(false!==stripos($sql,' %%HAVING%% '))
-                        $havingsql .= ' AND ('.implode(' AND ',$having_sql).')';
-                    else
-                        $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
+                        $other_sql[] = "$filterfield LIKE '%".$this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))."%'";
                 }
             }
-            if(false!==$this->order&&(false===$this->reorder||$this->action!='reorder'))
-                $ordersql = trim($this->order.' '.$this->order_dir);
-            elseif(false!==$this->reorder&&$this->action=='reorder')
-                $ordersql = trim($this->reorder_order.' '.$this->reorder_order_dir);
-            /*elseif(stripos($sql,' ORDER BY ')===false)
-                $ordersql = trim($this->identifier);*/
-            if(false!==$this->pagination&&!$full&&stripos($sql,' LIMIT ')===false)
+            if(!empty($other_sql))
             {
-                $start = ($this->page-1)*$this->limit;
-                $end = ($this->page-1)*$this->limit+$this->limit;
-                $limitsql .= " LIMIT $start,$end";
+                if(false===stripos($sql,' WHERE '))
+                    $wheresql .= ' WHERE ('.implode(' AND ',$other_sql).') ';
+                elseif(false!==stripos($sql,' WHERE %%WHERE%% ') || false===stripos($sql,' %%WHERE%% '))
+                    $wheresql .= ' ('.implode(' AND ',$other_sql).') AND ';
+                else
+                    $wheresql .= ' AND ('.implode(' AND ',$other_sql).') ';
             }
-            if(!empty($wheresql))
-                $sql .= ' WHERE '.$wheresql;
-            if(!empty($havingsql))
-                $sql .= ' HAVING '.$havingsql;
-            if(!empty($ordersql))
-                $sql .= ' ORDER BY '.$ordersql;
-            $sql .= $limitsql;
-            $sql = str_replace('``','`',$sql);
-            $sql = str_replace('  ',' ',$sql);
-            if (false !== $this->sql_count) {
-                $wheresql = $havingsql = $ordersql = $limitsql = '';
-                $sql_count = ' '.str_replace(array("\n","\r",'  '),' ',' '.$this->sql_count).' ';
-                $calc_found_sql = 'SQL_CALC_FOUND_ROWS';
-                if ($full || false !== $this->sql_count)
-                    $calc_found_sql = '';
-                $sql_count = str_ireplace(' SELECT '," SELECT {$calc_found_sql} ",str_ireplace(' SELECT SQL_CALC_FOUND_ROWS ',' SELECT ',$sql_count));
-                if(false!==$this->search&&!empty($this->search_columns))
-                {
-                    if(!empty($other_sql))
-                    {
-                        if(false===stripos($sql_count,' WHERE '))
-                            $wheresql .= ' WHERE ('.implode(' AND ',$other_sql).')';
-                        elseif(empty($wheresql))
-                            $wheresql .= ' AND ('.implode(' AND ',$other_sql).')';
-                        elseif(false===stripos($sql_count,' WHERE %%WHERE%% '))
-                            $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
-                        elseif(false!==stripos($sql_count,' %%WHERE%% '))
-                            $wheresql .= ' AND ('.implode(' AND ',$other_sql).')';
-                        else
-                            $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
-                    }
-                    if(!empty($having_sql))
-                    {
-                        if(false===stripos($sql_count,' HAVING '))
-                            $havingsql .= ' HAVING ('.implode(' AND ',$having_sql).')';
-                        elseif(empty($havingsql))
-                            $havingsql .= ' AND ('.implode(' AND ',$having_sql).')';
-                        elseif(false===stripos($sql_count,' HAVING %%HAVING%% '))
-                            $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
-                        elseif(false!==stripos($sql_count,' %%HAVING%% '))
-                            $havingsql .= ' AND ('.implode(' AND ',$having_sql).')';
-                        else
-                            $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
-                    }
-                }
-                if(!empty($wheresql))
-                    $sql_count .= ' WHERE '.$wheresql;
-                if(!empty($havingsql))
-                    $sql_count .= ' HAVING '.$havingsql;
-                if(!empty($ordersql))
-                    $sql_count .= ' ORDER BY '.$ordersql;
-                if (stripos($sql_count,' LIMIT ')===false)
-                    $sql_count .= 'LIMIT 1';
-                $sql_count = str_replace('``','`',$sql_count);
-                $sql_count = str_replace('  ',' ',$sql_count);
+            if(!empty($having_sql))
+            {
+                if(false===stripos($sql,' HAVING '))
+                    $havingsql .= ' HAVING ('.implode(' AND ',$having_sql).') ';
+                elseif(false!==stripos($sql,' HAVING %%HAVING%% ') || false===stripos($sql,' %%HAVING%% '))
+                    $havingsql .= ' ('.implode(' AND ',$havingsql).') AND ';
+                else
+                    $havingsql .= ' AND ('.implode(' AND ',$havingsql).') ';
             }
         }
-        else
+        if(false!==$this->order&&(false===$this->reorder||$this->action!='reorder'))
+            $ordersql = trim($this->order.' '.$this->order_dir);
+        elseif(false!==$this->reorder&&$this->action=='reorder')
+            $ordersql = trim($this->reorder_order.' '.$this->reorder_order_dir);
+        if(!empty($ordersql))
         {
-            $sql = ' '.str_replace(array("\n","\r",'  '),' ',' '.$this->sql).' ';
+            if(false===stripos($sql,' ORDER BY '))
+                $ordersql = ' ORDER BY '.$ordersql;
+            elseif(false!==stripos($sql,' ORDER BY %%ORDERBY%% '))
+                $ordersql = $ordersql.', ';
+            elseif(false!==stripos($sql,' %%ORDERBY%% '))
+                $ordersql = ','.$ordersql;
+            else
+                $ordersql = $ordersql.', ';
+        }
+        if(false!==$this->pagination&&!$full)
+        {
+            $start = ($this->page-1)*$this->limit;
+            $end = ($this->page-1)*$this->limit+$this->limit;
+            $limitsql .= $start.','.$end;
+        }
+        else
+            $sql = str_replace (' LIMIT %%LIMIT%% ','',$sql);
+        if(stripos($sql,'%%WHERE%%')===false&&stripos($sql,' WHERE ')===false)
+        {
+            if(stripos($sql,' GROUP BY ')!==false)
+                $sql = str_replace(' GROUP BY ',' %%WHERE%% GROUP BY ',$sql);
+            elseif(stripos($sql,' ORDER BY ')!==false)
+                $sql = str_replace(' ORDER BY ',' %%WHERE%% ORDER BY ',$sql);
+            elseif(stripos($sql,' LIMIT ')!==false)
+                $sql = str_replace(' LIMIT ',' %%WHERE%% LIMIT ',$sql);
+            else
+                $sql .= ' %%WHERE%% ';
+        }
+        elseif(stripos($sql,'%%WHERE%%')===false)
+            $sql = str_replace(' WHERE ',' WHERE %%WHERE%% ',$sql);
+        if(stripos($sql,'%%HAVING%%')===false&&stripos($sql,' HAVING ')===false)
+        {
+            if(stripos($sql,' ORDER BY ')!==false)
+                $sql = str_replace(' ORDER BY ',' %%HAVING%% ORDER BY ',$sql);
+            elseif(stripos($sql,' LIMIT ')!==false)
+                $sql = str_replace(' LIMIT ',' %%HAVING%% LIMIT ',$sql);
+            else
+                $sql .= ' %%HAVING%% ';
+        }
+        elseif(stripos($sql,'%%HAVING%%')===false)
+            $sql = str_replace(' HAVING ',' HAVING %%HAVING%% ',$sql);
+        if(stripos($sql,'%%ORDERBY%%')===false&&stripos($sql,' ORDER BY ')===false)
+        {
+            if(stripos($sql,' LIMIT ')!==false)
+                $sql = str_replace(' LIMIT ',' %%ORDERBY%% LIMIT ',$sql);
+            else
+                $sql .= ' %%ORDERBY%% ';
+        }
+        elseif(stripos($sql,'%%ORDERBY%%')===false)
+            $sql = str_replace(' ORDER BY ',' ORDER BY %%ORDERBY%% ',$sql);
+        if(stripos($sql,'%%LIMIT%%')===false&&stripos($sql,' LIMIT ')===false&&!empty($limitsql))
+            $sql .= ' LIMIT %%LIMIT%% ';
+        elseif(stripos($sql,'%%LIMIT%%')===false)
+            $sql = str_replace(' LIMIT ',' LIMIT %%LIMIT%% ',$sql);
+        $sql = str_replace('%%WHERE%%',$wheresql,$sql);
+        $sql = str_replace('%%HAVING%%',$havingsql,$sql);
+        $sql = str_replace('%%ORDERBY%%',$ordersql,$sql);
+        $sql = str_replace('%%LIMIT%%',$limitsql,$sql);
+        $sql = str_replace('``','`',$sql);
+        $sql = str_replace('  ',' ',$sql);
+        if (false !== $this->sql_count) {
+            $wheresql = $havingsql = $ordersql = $limitsql = '';
+            $sql_count = ' '.str_replace(array("\n","\r",'  '),' ',' '.$this->sql_count).' ';
             $calc_found_sql = 'SQL_CALC_FOUND_ROWS';
             if ($full || false !== $this->sql_count)
                 $calc_found_sql = '';
-            $totals = '';
-            foreach($this->columns as $key=>$column)
-            {
-                $attributes = $column;
-                if(!is_array($attributes))
-                    $attributes = $this->setup_column($column);
-                if(true!==$attributes['total_field'])
-                    continue;
-                if(is_array($column))
-                    $column = $key;
-                if (!is_array($totals))
-                    $totals = array();
-                $columnfield = '`'.$column.'`';
-                if($attributes['real_name']!==false)
-                    $columnfield = $attributes['real_name'];
-                $totals[] = 'SUM('.$columnfield.') AS `wp_admin_ui_total_'.$this->sanitize($column).'`';
-            }
-            if(is_array($totals))
-                $calc_found_sql .= ' '.implode(',',$totals).', ';
-            $sql = str_ireplace(' SELECT '," SELECT {$calc_found_sql} ",str_ireplace(' SELECT SQL_CALC_FOUND_ROWS ',' SELECT ',$sql));
-            $wheresql = $havingsql = $ordersql = $limitsql = '';
-            $other_sql = $having_sql = array();
-            if ($full || false !== $this->sql_count)
-                preg_match('/SELECT (.*) FROM/i',$sql,$selectmatches);
-            else
-                preg_match('/SELECT SQL_CALC_FOUND_ROWS (.*) FROM/i',$sql,$selectmatches);
-            $selects = array();
-            if(isset($selectmatches[1])&&!empty($selectmatches[1])&&stripos($selectmatches[1],' AS ')!==false)
-            {
-                $theselects = explode(', ',$selectmatches[1]);
-                if(empty($theselects))
-                    $theselects = explode(',',$selectmatches[1]);
-                foreach($theselects as $selected)
-                {
-                    $selectfield = explode(' AS ',$selected);
-                    if(count($selectfield)==2)
-                    {
-                        $field = trim(trim($selectfield[1]),'`');
-                        $real_field = trim(trim($selectfield[0]),'`');
-                        $selects[$field] = $real_field;
-                    }
-                }
-            }
+            $sql_count = str_ireplace(' SELECT '," SELECT {$calc_found_sql} ",str_ireplace(' SELECT SQL_CALC_FOUND_ROWS ',' SELECT ',$sql_count));
             if(false!==$this->search&&!empty($this->search_columns))
             {
-                if(false!==$this->search_query&&0<strlen($this->search_query))
-                {
-                    foreach($this->search_columns as $key=>$column)
-                    {
-                        $attributes = $column;
-                        if(!is_array($attributes))
-                            $attributes = $this->setup_column($column);
-                        if(false===$attributes['search'])
-                            continue;
-                        if(in_array($attributes['type'],array('date','time','datetime')))
-                            continue;
-                        if(is_array($column))
-                            $column = $key;
-                        if(isset($this->filters[$column]))
-                            continue;
-                        $columnfield = '`'.$column.'`';
-                        if(isset($selects[$column]))
-                            $columnfield = '`'.$selects[$column].'`';
-                        if($attributes['real_name']!==false)
-                            $columnfield = $attributes['real_name'];
-                        if($attributes['group_related']!==false)
-                            $having_sql[] = "$columnfield LIKE '%".$this->sanitize($this->search_query)."%'";
-                        else
-                            $other_sql[] = "$columnfield LIKE '%".$this->sanitize($this->search_query)."%'";
-                    }
-                    if(!empty($other_sql))
-                    {
-                        $other_sql = array('('.implode(' OR ',$other_sql).')');
-                    }
-                    if(!empty($having_sql))
-                    {
-                        $having_sql = array('('.implode(' OR ',$having_sql).')');
-                    }
-                }
-                foreach($this->filters as $filter)
-                {
-                    if(!isset($this->search_columns[$filter]))
-                        continue;
-                    $filterfield = '`'.$filter.'`';
-                    if(isset($selects[$filter]))
-                        $filterfield = '`'.$selects[$filter].'`';
-                    if($this->search_columns[$filter]['real_name']!==false)
-                        $filterfield = $this->search_columns[$filter]['real_name'];
-                    if(in_array($this->search_columns[$filter]['type'],array('date','datetime')))
-                    {
-                        $start = date_i18n('Y-m-d').($this->search_columns[$filter]['type']=='datetime'?' 00:00:00':'');
-                        $end = date_i18n('Y-m-d').($this->search_columns[$filter]['type']=='datetime'?' 23:59:59':'');
-                        if(strlen($this->get_var('filter_'.$filter.'_start',$this->search_columns[$filter]['filter_default']))<1&&strlen($this->get_var('filter_'.$filter.'_end',$this->search_columns[$filter]['filter_ongoing_default']))<1)
-                            continue;
-                        if(0<strlen($this->get_var('filter_'.$filter.'_start',$this->search_columns[$filter]['filter_default'])))
-                            $start = date_i18n('Y-m-d',strtotime($this->get_var('filter_'.$filter.'_start',$this->search_columns[$filter]['filter_default']))).($this->search_columns[$filter]['type']=='datetime'?' 00:00:00':'');
-                        if(0<strlen($this->get_var('filter_'.$filter.'_end',$this->search_columns[$filter]['filter_ongoing_default'])))
-                            $end = date_i18n('Y-m-d',strtotime($this->get_var('filter_'.$filter.'_end',$this->search_columns[$filter]['filter_ongoing_default']))).($this->search_columns[$filter]['type']=='datetime'?' 23:59:59':'');
-                        if(false!==$this->search_columns[$filter]['date_ongoing'])
-                        {
-                            $date_ongoing = $this->search_columns[$filter]['date_ongoing'];
-                            if(isset($selects[$date_ongoing]))
-                                $date_ongoing = $selects[$date_ongoing];
-                            if($this->search_columns[$filter]['group_related']!==false)
-                                $having_sql[] = "(($filterfield <= '$start' OR ($filterfield >= '$start' AND $filterfield <= '$end')) AND ($date_ongoing >= '$start' OR ($date_ongoing >= '$start' AND $date_ongoing <= '$end')))";
-                            else
-                                $other_sql[] = "(($filterfield <= '$start' OR ($filterfield >= '$start' AND $filterfield <= '$end')) AND ($date_ongoing >= '$start' OR ($date_ongoing >= '$start' AND $date_ongoing <= '$end')))";
-                        }
-                        else
-                        {
-                            if($this->search_columns[$filter]['group_related']!==false)
-                                $having_sql[] = "($filterfield BETWEEN '$start' AND '$end')";
-                            else
-                                $other_sql[] = "($filterfield BETWEEN '$start' AND '$end')";
-                        }
-                    }
-                    elseif(0<strlen($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))&&'related'==$this->search_columns[$filter]['type']&&false!==$this->search_columns[$filter]['related'])
-                    {
-                        if(!is_array($this->search_columns[$filter]['related']))
-                        {
-                            $search_value = $this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']));
-                            if(intval($search_value)<0)
-                                $search_value = "'".$search_value."'";
-                            else
-                                $search_value = intval($search_value);
-                            if($this->search_columns[$filter]['group_related']!==false)
-                                $having_sql[] = "`".$this->search_columns[$filter]['related']."`.`".$this->search_columns[$filter]['related_id']."` = $search_value";
-                            else
-                                $other_sql[] = "`".$this->search_columns[$filter]['related']."`.`".$this->search_columns[$filter]['related_id']."` = $search_value";
-                        }
-                        else
-                        {
-                            if($this->search_columns[$filter]['group_related']!==false)
-                                $having_sql[] = "$filterfield LIKE '%".$this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))."%'";
-                            else
-                                $other_sql[] = "$filterfield LIKE '%".$this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))."%'";
-                        }
-                    }
-                    elseif(0<strlen($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default'])))
-                    {
-                        if($this->search_columns[$filter]['group_related']!==false)
-                            $having_sql[] = "$filterfield LIKE '%".$this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))."%'";
-                        else
-                            $other_sql[] = "$filterfield LIKE '%".$this->sanitize($this->get_var('filter_'.$filter,$this->search_columns[$filter]['filter_default']))."%'";
-                    }
-                }
                 if(!empty($other_sql))
                 {
                     if(false===stripos($sql,' WHERE '))
-                        $wheresql .= ' WHERE ('.implode(' AND ',$other_sql).')';
-                    elseif(false===stripos($sql,' WHERE %%WHERE%% '))
-                        $wheresql .= ' AND ('.implode(' AND ',$other_sql).')';
-                    elseif(false!==stripos($sql,' %%WHERE%% '))
-                        $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
+                        $wheresql .= ' WHERE ('.implode(' AND ',$other_sql).') ';
+                    elseif(false!==stripos($sql,' WHERE %%WHERE%% ') || false===stripos($sql,' %%WHERE%% '))
+                        $wheresql .= ' ('.implode(' AND ',$other_sql).') AND ';
+                    else
+                        $wheresql .= ' AND ('.implode(' AND ',$other_sql).') ';
                 }
                 if(!empty($having_sql))
                 {
                     if(false===stripos($sql,' HAVING '))
-                        $havingsql .= ' HAVING ('.implode(' AND ',$having_sql).')';
-                    elseif(false===stripos($sql,' HAVING %%HAVING%% '))
-                        $havingsql .= ' AND ('.implode(' AND ',$having_sql).')';
-                    elseif(false!==stripos($sql,' %%HAVING%% '))
-                        $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
-                }
-            }
-            if(false!==$this->order&&(false===$this->reorder||$this->action!='reorder'))
-                $ordersql = trim($this->order.' '.$this->order_dir);
-            elseif(false!==$this->reorder&&$this->action=='reorder')
-                $ordersql = trim($this->reorder_order.' '.$this->reorder_order_dir);
-            elseif(stripos($sql,' ORDER BY ')===false)
-                $ordersql = trim($this->identifier);
-            if(!empty($ordersql))
-            {
-                if(false===stripos($sql,' ORDER BY '))
-                    $ordersql = ' ORDER BY '.$ordersql;
-                elseif(false!==stripos($sql,' ORDER BY %%ORDERBY%% '))
-                    $ordersql = $ordersql.', ';
-                elseif(false!==stripos($sql,' %%ORDERBY%% '))
-                    $ordersql = ','.$ordersql;
-                else
-                    $ordersql = $ordersql.', ';
-            }
-            if(false!==$this->pagination&&!$full)
-            {
-                $start = ($this->page-1)*$this->limit;
-                $end = ($this->page-1)*$this->limit+$this->limit;
-                $limitsql .= $start.','.$end;
-            }
-            else
-                $sql = str_replace (' LIMIT %%LIMIT%% ','',$sql);
-            if(stripos($sql,'%%WHERE%%')===false&&stripos($sql,' WHERE ')===false)
-            {
-                if(stripos($sql,' GROUP BY ')!==false)
-                    $sql = str_replace(' GROUP BY ',' %%WHERE%% GROUP BY ',$sql);
-                elseif(stripos($sql,' ORDER BY ')!==false)
-                    $sql = str_replace(' ORDER BY ',' %%WHERE%% ORDER BY ',$sql);
-                elseif(stripos($sql,' LIMIT ')!==false)
-                    $sql = str_replace(' LIMIT ',' %%WHERE%% LIMIT ',$sql);
-                else
-                    $sql .= ' %%WHERE%% ';
-            }
-            elseif(stripos($sql,'%%WHERE%%')===false)
-                $sql = str_replace(' WHERE ',' WHERE %%WHERE%% ',$sql);
-            if(stripos($sql,'%%HAVING%%')===false&&stripos($sql,' HAVING ')===false)
-            {
-                if(stripos($sql,' ORDER BY ')!==false)
-                    $sql = str_replace(' ORDER BY ',' %%HAVING%% ORDER BY ',$sql);
-                elseif(stripos($sql,' LIMIT ')!==false)
-                    $sql = str_replace(' LIMIT ',' %%HAVING%% LIMIT ',$sql);
-                else
-                    $sql .= ' %%HAVING%% ';
-            }
-            elseif(stripos($sql,'%%HAVING%%')===false)
-                $sql = str_replace(' HAVING ',' HAVING %%HAVING%% ',$sql);
-            if(stripos($sql,'%%ORDERBY%%')===false&&stripos($sql,' ORDER BY ')===false)
-            {
-                if(stripos($sql,' LIMIT ')!==false)
-                    $sql = str_replace(' LIMIT ',' %%ORDERBY%% LIMIT ',$sql);
-                else
-                    $sql .= ' %%ORDERBY%% ';
-            }
-            elseif(stripos($sql,'%%ORDERBY%%')===false)
-                $sql = str_replace(' ORDER BY ',' ORDER BY %%ORDERBY%% ',$sql);
-            if(stripos($sql,'%%LIMIT%%')===false&&stripos($sql,' LIMIT ')===false&&!empty($limitsql))
-                $sql .= ' LIMIT %%LIMIT%% ';
-            elseif(stripos($sql,'%%LIMIT%%')===false)
-                $sql = str_replace(' LIMIT ',' LIMIT %%LIMIT%% ',$sql);
-            $sql = str_replace('%%WHERE%%',$wheresql,$sql);
-            $sql = str_replace('%%HAVING%%',$havingsql,$sql);
-            $sql = str_replace('%%ORDERBY%%',$ordersql,$sql);
-            $sql = str_replace('%%LIMIT%%',$limitsql,$sql);
-            $sql = str_replace('``','`',$sql);
-            $sql = str_replace('  ',' ',$sql);
-            if (false !== $this->sql_count) {
-                $wheresql = $havingsql = $ordersql = $limitsql = '';
-                $sql_count = ' '.str_replace(array("\n","\r",'  '),' ',' '.$this->sql_count).' ';
-                $calc_found_sql = 'SQL_CALC_FOUND_ROWS';
-                if ($full || false !== $this->sql_count)
-                    $calc_found_sql = '';
-                $sql_count = str_ireplace(' SELECT '," SELECT {$calc_found_sql} ",str_ireplace(' SELECT SQL_CALC_FOUND_ROWS ',' SELECT ',$sql_count));
-                if(false!==$this->search&&!empty($this->search_columns))
-                {
-                    if(!empty($other_sql))
-                    {
-                        if(false===stripos($sql_count,' WHERE '))
-                            $wheresql .= ' WHERE ('.implode(' AND ',$other_sql).')';
-                        elseif(false===stripos($sql_count,' WHERE %%WHERE%% '))
-                            $wheresql .= ' AND ('.implode(' AND ',$other_sql).')';
-                        elseif(false!==stripos($sql_count,' %%WHERE%% '))
-                            $wheresql .= '('.implode(' AND ',$other_sql).') AND ';
-                    }
-                    if(!empty($having_sql))
-                    {
-                        if(false===stripos($sql_count,' HAVING '))
-                            $havingsql .= ' HAVING ('.implode(' AND ',$having_sql).')';
-                        elseif(false===stripos($sql_count,' HAVING %%HAVING%% '))
-                            $havingsql .= ' AND ('.implode(' AND ',$having_sql).')';
-                        elseif(false!==stripos($sql_count,' %%HAVING%% '))
-                            $havingsql .= '('.implode(' AND ',$having_sql).') AND ';
-                    }
-                }
-                $limitsql .= '1';
-                if(stripos($sql_count,'%%WHERE%%')===false&&stripos($sql_count,' WHERE ')===false)
-                {
-                    if(stripos($sql_count,' GROUP BY ')!==false)
-                        $sql_count = str_replace(' GROUP BY ',' %%WHERE%% GROUP BY ',$sql_count);
-                    elseif(stripos($sql_count,' ORDER BY ')!==false)
-                        $sql_count = str_replace(' ORDER BY ',' %%WHERE%% ORDER BY ',$sql_count);
-                    elseif(stripos($sql_count,' LIMIT ')!==false)
-                        $sql_count = str_replace(' LIMIT ',' %%WHERE%% LIMIT ',$sql_count);
+                        $havingsql .= ' HAVING ('.implode(' AND ',$having_sql).') ';
+                    elseif(false!==stripos($sql,' HAVING %%HAVING%% ') || false===stripos($sql,' %%HAVING%% '))
+                        $havingsql .= ' ('.implode(' AND ',$havingsql).') AND ';
                     else
-                        $sql_count .= ' %%WHERE%% ';
+                        $havingsql .= ' AND ('.implode(' AND ',$havingsql).') ';
                 }
-                elseif(stripos($sql_count,'%%WHERE%%')===false)
-                    $sql_count = str_replace(' WHERE ',' WHERE %%WHERE%% ',$sql_count);
-                if(stripos($sql_count,'%%HAVING%%')===false&&stripos($sql_count,' HAVING ')===false)
-                {
-                    if(stripos($sql_count,' ORDER BY ')!==false)
-                        $sql_count = str_replace(' ORDER BY ',' %%HAVING%% ORDER BY ',$sql_count);
-                    elseif(stripos($sql_count,' LIMIT ')!==false)
-                        $sql_count = str_replace(' LIMIT ',' %%HAVING%% LIMIT ',$sql_count);
-                    else
-                        $sql_count .= ' %%HAVING%% ';
-                }
-                elseif(stripos($sql_count,'%%HAVING%%')===false)
-                    $sql_count = str_replace(' HAVING ',' HAVING %%HAVING%% ',$sql_count);
-                if(stripos($sql_count,'%%LIMIT%%')===false&&stripos($sql_count,' LIMIT ')===false&&!empty($limitsql))
-                    $sql_count .= ' LIMIT %%LIMIT%% ';
-                elseif(stripos($sql_count,'%%LIMIT%%')===false)
-                    $sql_count = str_replace(' LIMIT ',' LIMIT %%LIMIT%% ',$sql_count);
-                $sql_count = str_replace('%%WHERE%%',$wheresql,$sql_count);
-                $sql_count = str_replace('%%HAVING%%',$havingsql,$sql_count);
-                $sql_count = str_replace('%%LIMIT%%',$limitsql,$sql_count);
-                $sql_count = str_replace('``','`',$sql_count);
-                $sql_count = str_replace('  ',' ',$sql_count);
             }
+            $limitsql .= '1';
+            if(stripos($sql_count,'%%WHERE%%')===false&&stripos($sql_count,' WHERE ')===false)
+            {
+                if(stripos($sql_count,' GROUP BY ')!==false)
+                    $sql_count = str_replace(' GROUP BY ',' %%WHERE%% GROUP BY ',$sql_count);
+                elseif(stripos($sql_count,' ORDER BY ')!==false)
+                    $sql_count = str_replace(' ORDER BY ',' %%WHERE%% ORDER BY ',$sql_count);
+                elseif(stripos($sql_count,' LIMIT ')!==false)
+                    $sql_count = str_replace(' LIMIT ',' %%WHERE%% LIMIT ',$sql_count);
+                else
+                    $sql_count .= ' %%WHERE%% ';
+            }
+            elseif(stripos($sql_count,'%%WHERE%%')===false)
+                $sql_count = str_replace(' WHERE ',' WHERE %%WHERE%% ',$sql_count);
+            if(stripos($sql_count,'%%HAVING%%')===false&&stripos($sql_count,' HAVING ')===false)
+            {
+                if(stripos($sql_count,' ORDER BY ')!==false)
+                    $sql_count = str_replace(' ORDER BY ',' %%HAVING%% ORDER BY ',$sql_count);
+                elseif(stripos($sql_count,' LIMIT ')!==false)
+                    $sql_count = str_replace(' LIMIT ',' %%HAVING%% LIMIT ',$sql_count);
+                else
+                    $sql_count .= ' %%HAVING%% ';
+            }
+            elseif(stripos($sql_count,'%%HAVING%%')===false)
+                $sql_count = str_replace(' HAVING ',' HAVING %%HAVING%% ',$sql_count);
+            if(stripos($sql_count,'%%LIMIT%%')===false&&stripos($sql_count,' LIMIT ')===false&&!empty($limitsql))
+                $sql_count .= ' LIMIT %%LIMIT%% ';
+            elseif(stripos($sql_count,'%%LIMIT%%')===false)
+                $sql_count = str_replace(' LIMIT ',' LIMIT %%LIMIT%% ',$sql_count);
+            $sql_count = str_replace('%%WHERE%%',$wheresql,$sql_count);
+            $sql_count = str_replace('%%HAVING%%',$havingsql,$sql_count);
+            $sql_count = str_replace('%%LIMIT%%',$limitsql,$sql_count);
+            $sql_count = str_replace('``','`',$sql_count);
+            $sql_count = str_replace('  ',' ',$sql_count);
         }
         if (current_user_can('manage_options') && isset($_GET['debug']) && 1 == $_GET['debug'])
             echo "<textarea cols='130' rows='30'>$sql</textarea>";
-        if(false!==$this->default_none&&false===$full&&empty($wheresql)&&empty($havingsql))
+        if(false!==$this->default_none&&false===$this->search_query&&false===$full&&empty($wheresql)&&empty($havingsql))
             return;
         $results = $wpdb->get_results($sql,ARRAY_A);
         if (current_user_can('manage_options') && isset($_GET['debug']) && 1 == $_GET['debug'])
@@ -2038,14 +1823,14 @@ class WP_Admin_UI
         global $wpdb;
         $this->do_hook('manage',$reorder);
         if(isset($this->custom['manage'])&&function_exists("{$this->custom['manage']}"))
-            return $this->custom['manage']($this,$reorder);
+            return call_user_func( $this->custom['manage'],$this,$reorder);
 ?>
 <div class="wrap">
     <div id="icon-edit-pages" class="icon32"<?php if(false!==$this->icon){ ?> style="background-position:0 0;background-image:url(<?php echo $this->icon; ?>);"<?php } ?>><br /></div>
     <h2><?php echo ($reorder==0||false===$this->reorder?$this->heading['manage']:$this->heading['reorder']); ?> <?php echo $this->items; if($reorder==1&&false!==$this->reorder){ ?> <small>(<a href="<?php echo $this->var_update(array('action'=>'manage','id'=>'')); ?>">&laquo; Back to Manage</a>)</small><?php } ?></h2>
 <?php
         if(isset($this->custom['header'])&&function_exists("{$this->custom['header']}"))
-            echo $this->custom['header']($this);
+            echo call_user_func( $this->custom['header'],$this);
         if(empty($this->data))
             $this->get_data();
         if (empty($this->columns))
@@ -2309,9 +2094,16 @@ jQuery(document).ready(function(){
     }
     function table ($reorder=0)
     {
+        if($reorder==1&&false!==$this->reorder)
+        {
+            if (!wp_script_is('jquery-ui-core', 'queue') && !wp_script_is('jquery-ui-core', 'to_do') && !wp_script_is('jquery-ui-core', 'done'))
+                wp_print_scripts('jquery-ui-core');
+            if (!wp_script_is('jquery-ui-sortable', 'queue') && !wp_script_is('jquery-ui-sortable', 'to_do') && !wp_script_is('jquery-ui-sortable', 'done'))
+                wp_print_scripts('jquery-ui-sortable');
+        }
         $this->do_hook('table',$reorder);
         if(isset($this->custom['table'])&&function_exists("{$this->custom['table']}"))
-            return $this->custom['table']($this,$reorder);
+            return call_user_func( $this->custom['table'],$this,$reorder);
         if(empty($this->data))
         {
 ?>
@@ -2463,10 +2255,10 @@ table.widefat.fixed tbody.sortable tr { height:50px; }
                 <div class="row-actions">
 <?php
                         if(isset($this->custom['actions_start'])&&function_exists("{$this->custom['actions_start']}"))
-                            $this->custom['actions_start']($this,$row);
+                            call_user_func( $this->custom['actions_start'],$this,$row);
                         echo implode(' | ',$actions);
                         if(isset($this->custom['actions_end'])&&function_exists("{$this->custom['actions_end']}"))
-                            $this->custom['actions_end']($this,$row);
+                            call_user_func( $this->custom['actions_end'],$this,$row);
 ?>
                 </div>
 <?php
@@ -2568,7 +2360,7 @@ jQuery(document).ready(function(){
     {
         $this->do_hook('pagination');
         if(isset($this->custom['pagination'])&&function_exists("{$this->custom['pagination']}"))
-            return $this->custom['pagination']($this);
+            return call_user_func( $this->custom['pagination'],$this);
         $page = $this->page;
         $rows_per_page = $this->limit;
         $total_rows = $this->total;
@@ -2643,7 +2435,7 @@ jQuery(document).ready(function(){
     {
         $this->do_hook('limit',$options);
         if(isset($this->custom['limit'])&&function_exists("{$this->custom['limit']}"))
-            return $this->custom['limit']($this);
+            return call_user_func( $this->custom['limit'],$this);
         if(false===$options||!is_array($options)||empty($options))
             $options = array(10,25,50,100,200);
         if(!in_array($this->limit,$options))

@@ -3,18 +3,16 @@ Contributors: sc0ttkclark
 Donate link: http://scottkclark.com/
 Tags: exports, reports, reporting, exporting, csv, tab, xml, json
 Requires at least: 3.0
-Tested up to: 3.2.1
-Stable tag: 0.5.1
+Tested up to: 3.4.2
+Stable tag: 0.5.2
 
-THIS IS A BETA VERSION - Currently in development - Define custom exports / reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
+Define custom exports / reports for users, based off of any custom MySQL SELECT query you define.
 
 == Description ==
 
 **THIS IS A BETA VERSION - Currently in development**
 
-**OFFICIAL SUPPORT** - Exports and Reports - Support Forums: http://scottkclark.com/forums/exports-and-reports/
-
-Define custom Exports / Reports (using MySQL queries) for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
+Define custom exports / reports for users, based off of any MySQL SELECT query you create. This plugin interacts with your SELECT query and does all the hard work for you: exporting, pagination, ordering, searching/filtering, and display formatting for you.
 
 All you do is install the plugin, create your Groups, create your Reports, and hand it off to your clients. Exportable reports in CSV, TSV, XML, JSON, and custom delimiter separated formats.
 
@@ -28,7 +26,15 @@ Groups are groupings of Reports that are given their own menu item in the "Repor
 
 A Report is defined by a Custom MySQL query and can be configured to display however you wish using additional field definitions. Exports can be disabled per report.
 
+**My report isn't working**
+
+As an admin, add &debug=1 to the end of the report URL to see the query that this plugin uses, take that query and use it in your own MySQL client or PHPMyAdmin to see if there are any errors in your own query.
+
 == Changelog ==
+
+= 0.5.2 =
+* Bug fixes, added nonces for exports
+* More coming, I've been focusing on Pods 2.0 (http://dev.podsframework.org/tag/pods2/) and haven't had a chance to revamp this plugin with the all new UI I've developed
 
 = 0.5.1 =
 * Feature: Reports menu split from Reports Admin so they're two separate menus now to avoid confusion for users
