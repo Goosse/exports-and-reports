@@ -1498,7 +1498,7 @@ class WP_Admin_UI
         }
         if(is_array($totals))
             $calc_found_sql .= ' '.implode(',',$totals).', ';
-        $sql = str_ireplace(' SELECT '," SELECT {$calc_found_sql} ",str_ireplace(' SELECT SQL_CALC_FOUND_ROWS ',' SELECT ',$sql));
+        $sql = preg_replace('/ SELECT /'," SELECT {$calc_found_sql} ", preg_replace('/ SELECT SQL_CALC_FOUND_ROWS /',' SELECT ',$sql, 1), 1);
         $wheresql = $havingsql = $ordersql = $limitsql = '';
         $other_sql = $having_sql = array();
         if ($full || false !== $this->sql_count)
