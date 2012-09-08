@@ -44,7 +44,7 @@ if(isset($_GET['download']) && !isset($_GET['page']) && is_user_logged_in() && i
  *
  * @package Admin UI for Plugins
  *
- * @version 1.9.1
+ * @version 1.9.2
  * @author Scott Kingsley Clark
  * @link http://scottkclark.com/
  *
