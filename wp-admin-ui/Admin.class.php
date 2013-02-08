@@ -10,10 +10,11 @@ if(!is_object($wpdb))
     ob_end_clean();
 }
 // FOR EXPORTS ONLY
-if(isset($_GET['download']) && !isset($_GET['page']) && is_user_logged_in() && isset($_GET['_wpnonce']) && false === wp_verify_nonce($_GET['_wpnonce'], 'wp-admin-ui-export'))
+if ( isset( $_GET[ 'download' ] ) && !isset( $_GET[ 'page' ] ) && is_user_logged_in() && isset( $_GET[ '_wpnonce' ] ) && false != wp_verify_nonce( $_GET[ '_wpnonce' ], 'wp-admin-ui-export' ) )
 {
     do_action('wp_admin_ui_export_download');
     $file = WP_CONTENT_DIR.'/exports/'.str_replace('/','',$_GET['export']);
+    $file = realpath( $file );
     if(!isset($_GET['export'])||empty($_GET['export'])||!file_exists($file))
         die('File not found.');
     // required for IE, otherwise Content-disposition is ignored
@@ -119,7 +120,7 @@ class WP_Admin_UI
     {
         do_action('wp_admin_ui_pre_init',$options);
         $options = $this->do_hook('options',$options);
-        $this->base_url = WP_CONTENT_URL.str_replace(WP_CONTENT_DIR,'',__FILE__);
+        $this->base_url = plugins_url( 'Admin.class.php', __FILE__  );
         $this->export_dir = WP_CONTENT_DIR.'/exports';
         $this->export_url = $this->base_url.'?download=1&_wpnonce='.wp_create_nonce('wp-admin-ui-export').'&export=';
         $this->assets_url = str_replace('/Admin.class.php','',$this->base_url).'/assets';
