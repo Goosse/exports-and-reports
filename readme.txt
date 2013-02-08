@@ -3,8 +3,8 @@ Contributors: sc0ttkclark
 Donate link: http://scottkclark.com/
 Tags: exports, reports, reporting, exporting, csv, tab, xml, json
 Requires at least: 3.0
-Tested up to: 3.5
-Stable tag: 0.5.2
+Tested up to: 3.5.1
+Stable tag: 0.5.3
 
 Define custom exports / reports for users, based off of any custom MySQL SELECT query you define.
 
@@ -32,9 +32,11 @@ As an admin, add &debug=1 to the end of the report URL to see the query that thi
 
 == Changelog ==
 
+= 0.5.3 =
+* Fix for exporting and URL paths on Windows, props to @fantomas_bg
+
 = 0.5.2 =
 * Bug fixes, added nonces for exports
-* More coming, I've been focusing on Pods 2.0 (http://dev.podsframework.org/tag/pods2/) and haven't had a chance to revamp this plugin with the all new UI I've developed
 
 = 0.5.1 =
 * Feature: Reports menu split from Reports Admin so they're two separate menus now to avoid confusion for users
