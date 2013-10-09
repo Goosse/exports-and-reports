@@ -3,8 +3,8 @@ Contributors: sc0ttkclark
 Donate link: http://scottkclark.com/
 Tags: exports, reports, reporting, exporting, csv, tab, xml, json
 Requires at least: 3.0
-Tested up to: 3.5.1
-Stable tag: 0.5.3
+Tested up to: 3.6.1
+Stable tag: 0.6.0
 
 Define custom exports / reports for users, based off of any custom MySQL SELECT query you define.
 
@@ -31,6 +31,12 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 As an admin, add &debug=1 to the end of the report URL to see the query that this plugin uses, take that query and use it in your own MySQL client or PHPMyAdmin to see if there are any errors in your own query.
 
 == Changelog ==
+
+= 0.6.0 =
+* Feature: Added new Cronjob URL which you can define report or export type (requires WP 3.5+)
+* Feature: Added new JSON API URL which you can define report, export type, and optional pagination (requires WP 3.5+)
+* Changed: Format of exported file names is now utilizing 24 hour format, along with a random string at the end
+* Fix: Tweaks to table markup
 
 = 0.5.3 =
 * Fix for exporting and URL paths on Windows, props to @fantomas_bg
@@ -173,3 +179,7 @@ Scott Kingsley Clark from SKC Development -- Scott specializes in WordPress and 
 * XML - XML 1.0 UTF-8 data
 * JSON - JSON for use in Javascript and PHP5+
 * Custom - Custom delimiter separated Values
+
+= Cronjob / JSON API =
+* Run the Export action for a specific report to any supported export type
+* Get paginated / full data from a report in JSON format
