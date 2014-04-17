@@ -3,7 +3,7 @@ Contributors: sc0ttkclark
 Donate link: http://scottkclark.com/
 Tags: exports, reports, reporting, exporting, csv, tab, xml, json
 Requires at least: 3.0
-Tested up to: 3.6.1
+Tested up to: 3.9
 Stable tag: 0.6.0
 
 Define custom exports / reports for users, based off of any custom MySQL SELECT query you define.
@@ -31,6 +31,9 @@ A Report is defined by a Custom MySQL query and can be configured to display how
 As an admin, add &debug=1 to the end of the report URL to see the query that this plugin uses, take that query and use it in your own MySQL client or PHPMyAdmin to see if there are any errors in your own query.
 
 == Changelog ==
+
+= 0.6.1 =
+* Fixed: How the token gets generated is more randomized now
 
 = 0.6.0 =
 * Feature: Added new Cronjob URL which you can define report or export type (requires WP 3.5+)

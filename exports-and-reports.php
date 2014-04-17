@@ -3,7 +3,7 @@
 Plugin Name: Exports and Reports
 Plugin URI: http://scottkclark.com/wordpress/exports-and-reports/
 Description: Define custom exports / reports for users by creating each export / report and defining the fields as well as custom MySQL queries to run.
-Version: 0.6
+Version: 0.6.1
 Author: Scott Kingsley Clark
 Author URI: http://scottkclark.com/
 */
@@ -87,16 +87,7 @@ function exports_reports_init() {
 			$wpdb->query( "ALTER TABLE " . EXPORTS_REPORTS_TBL . "reports ADD COLUMN `sql_query_count` longtext NOT NULL AFTER `sql_query`" );
 		}
 		if ( $version < 60 ) {
-			if(defined('NONCE_KEY'))
-				$token = md5(NONCE_KEY);
-			elseif(defined('AUTH_KEY'))
-				$token = md5(AUTH_KEY);
-			elseif(defined('SECURE_AUTH_KEY'))
-				$token = md5(SECURE_AUTH_KEY);
-			elseif(defined('LOGGED_IN_KEY'))
-				$token = md5(LOGGED_IN_KEY);
-			else
-				$token = md5(microtime().wp_generate_password(20,true));
+			$token = md5(microtime().wp_generate_password(20,true));
 			update_option('exports_reports_token',$token);
 		}
 		delete_option( 'exports_reports_version' );
