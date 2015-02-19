@@ -165,6 +165,16 @@ else {
 	}
 	else {
 		$admin->go();
+
+		if ( $admin->exported_file ) {
+			$data = array(
+				'export_file' => $admin->export_url . $admin->exported_file,
+			    'message' => 'Report exported'
+			);
+		}
+		else {
+			$data = new WP_Error( 'exports-reports-failed-export', 'Report failed to export' );
+		}
 	}
 
 	$ui = ob_get_clean();
@@ -175,6 +185,12 @@ else {
 		$error = $error[ 1 ];
 
 		wp_send_json_error( $error );
+	}
+	elseif ( is_wp_error( $data ) ) {
+		/**
+		 * @var $data WP_Error
+		 */
+		wp_send_json_error( $data->get_error_message() );
 	}
 	elseif ( !empty( $data ) ) {
 		wp_send_json_success( $data );
