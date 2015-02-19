@@ -112,6 +112,7 @@ class WP_Admin_UI
 
     // export related
     var $export_dir = false;
+    var $exported_file = false;
     var $export_url = false;
     var $export_type = false;
     var $export_delimiter = false;
@@ -1422,6 +1423,9 @@ class WP_Admin_UI
                 return false;
             }
         }
+
+	    $this->exported_file = $export_file;
+
         $this->do_hook('post_export',$export_file);
     }
     function get_row ($id=false)
