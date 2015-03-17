@@ -10,7 +10,7 @@ if(!is_object($wpdb))
     ob_end_clean();
 }
 // FOR EXPORTS ONLY
-if ( isset( $_GET[ 'download' ] ) && !isset( $_GET[ 'page' ] ) && is_user_logged_in() && isset( $_GET[ '_wpnonce' ] ) && false != wp_verify_nonce( $_GET[ '_wpnonce' ], 'wp-admin-ui-export' ) )
+if(isset($_GET['download']) && !isset($_GET['page']) && is_user_logged_in() && isset($_GET['_wpnonce']) && false !== wp_verify_nonce($_GET['_wpnonce'], 'wp-admin-ui-export'))
 {
     do_action('wp_admin_ui_export_download');
     $file = WP_CONTENT_DIR.'/exports/'.str_replace('/','',$_GET['export']);
@@ -45,7 +45,7 @@ if ( isset( $_GET[ 'download' ] ) && !isset( $_GET[ 'page' ] ) && is_user_logged
  *
  * @package Admin UI for Plugins
  *
- * @version 1.9.2
+ * @version 1.9.3
  * @author Scott Kingsley Clark
  * @link http://scottkclark.com/
  *
@@ -126,21 +126,27 @@ class WP_Admin_UI
         $this->export_url = $this->base_url.'?download=1&_wpnonce='.wp_create_nonce('wp-admin-ui-export').'&export=';
         $this->assets_url = str_replace('/Admin.class.php','',$this->base_url).'/assets';
         if(false!==$this->get_var('id'))
-            $this->id = $_GET['id'];
+            $this->id = sanitize_text_field( $_GET['id'] );
         if(false!==$this->get_var('action',false,array('add','edit','duplicate','view','delete','manage','reorder','export')))
-            $this->action = $_GET['action'];
+            $this->action = sanitize_text_field( $_GET['action'] );
         if(false!==$this->get_var('do',false,array('save','create')))
-            $this->do = $_GET['do'];
+            $this->do = sanitize_text_field( $_GET['do'] );
         if(false!==$this->get_var('search_query'))
-            $this->search_query = $_GET['search_query'];
+            $this->search_query = sanitize_text_field( $_GET['search_query'] );
         if(false!==$this->get_var('pg'))
-            $this->page = $_GET['pg'];
+            $this->page = absint( $_GET['pg'] );
         if(false!==$this->get_var('limit'))
-            $this->limit = $_GET['limit'];
-        if(false!==$this->get_var('order'))
-            $this->order = $_GET['order'];
+            $this->limit = absint( $_GET['limit'] );
+        if(false!==$this->get_var('order')) {
+	        $order = sanitize_text_field( $_GET[ 'order' ] );
+	        $order = preg_replace( "/([- ])/", "_", trim( $order ) );
+		    $order = preg_replace( "/([^0-9a-z_])/", "", strtolower( $order ) );
+		    $order = preg_replace( "/(_){2,}/", "_", $order );
+
+	        $this->order = $order;
+        }
         if(false!==$this->get_var('order_dir',false,array('ASC','DESC')))
-            $this->order_dir = $_GET['order_dir'];
+            $this->order_dir = ('ASC'==$_GET['order_dir']?'ASC':'DESC');
         if(false!==$this->get_var('action',false,'export')&&false!==$this->get_var('export_type',false,array('csv','tsv','pipe','custom','xml','json')))
             $this->export_type = $_GET['export_type'];
         if(false!==$this->get_var('action',false,'export')&&'custom'==$this->export_type&&false!==$this->get_var('export_delimiter'))
