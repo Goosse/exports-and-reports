@@ -10,8 +10,6 @@ Define custom exports / reports for users, based off of any custom MySQL SELECT 
 
 == Description ==
 
-**THIS IS A BETA VERSION - Currently in development**
-
 Define custom exports / reports for users, based off of any MySQL SELECT query you create. This plugin interacts with your SELECT query and does all the hard work for you: exporting, pagination, ordering, searching/filtering, and display formatting for you.
 
 All you do is install the plugin, create your Groups, create your Reports, and hand it off to your clients. Exportable reports in CSV, TSV, XML, JSON, and custom delimiter separated formats.
