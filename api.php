@@ -1,4 +1,6 @@
 <?php
+// @todo Replace with admin-ajax.php call
+
 global $wpdb;
 
 //define('WP_DEBUG',true);
@@ -7,6 +9,18 @@ if ( !is_object( $wpdb ) ) {
 	ob_start();
 	require_once( '../../../wp-load.php' );
 	ob_end_clean();
+}
+
+if ( ! defined( 'WP_ADMIN_UI_EXPORT_URL' ) ) {
+	define( 'WP_ADMIN_UI_EXPORT_URL', WP_CONTENT_URL . '/exports' );
+}
+
+if ( ! defined( 'WP_ADMIN_UI_EXPORT_DIR' ) ) {
+	define( 'WP_ADMIN_UI_EXPORT_DIR', WP_CONTENT_DIR . '/exports' );
+}
+
+if ( ! function_exists( 'is_plugin_active' ) || ! is_plugin_active( dirname( __FILE__ ) . '/exports-and-reports.php' ) ) {
+	wp_die();
 }
 
 set_time_limit( 6000 );
@@ -31,15 +45,17 @@ if ( !function_exists( 'wp_send_json_success' ) ) {
 elseif ( !isset( $_GET[ 'token' ] ) || $_GET[ 'token' ] != $check ) {
 	wp_send_json_error( 'Invalid Token' );
 }
-elseif ( !isset( $_GET[ 'report' ] ) || empty( $_GET[ 'report' ] ) ) {
+elseif ( empty( $_GET[ 'report' ] ) ) {
 	wp_send_json_error( 'Invalid Report' );
 }
-elseif ( !isset( $_GET[ 'export_type' ] ) || empty( $_GET[ 'export_type' ] ) ) {
+elseif ( empty( $_GET[ 'export_type' ] ) ) {
 	wp_send_json_error( 'Invalid Export Type' );
 }
 
+$_GET[ 'export_type' ] = strtolower( $_GET[ 'export_type' ] );
+
 // Run export
-$report = (int) $_GET[ 'report' ];
+$report = absint( $_GET[ 'report' ] );
 $report = $wpdb->get_row( 'SELECT * FROM `' . EXPORTS_REPORTS_TBL . 'reports` WHERE `id`=' . $report . ' LIMIT 1' );
 
 if ( empty( $report ) ) {
@@ -145,11 +161,14 @@ else {
 	if ( !isset( $_GET[ 'action' ] ) ) {
 		$_GET[ 'action' ] = 'export';
 	}
+	// Force manage action (mainly for action=json)
 	else {
 		$_GET[ 'action' ] = 'manage';
 	}
 
 	$data = false;
+
+	$download = false;
 
 	ob_start();
 	$admin = new WP_Admin_UI( $options );
@@ -168,9 +187,13 @@ else {
 
 		if ( $admin->exported_file ) {
 			$data = array(
-				'export_file' => $admin->export_url . $admin->exported_file,
+				'export_file' => WP_ADMIN_UI_EXPORT_URL . '/' . $admin->exported_file,
 			    'message' => 'Report exported'
 			);
+
+			if ( ! empty( $_GET[ 'download' ] ) ) {
+				$download = true;
+			}
 		}
 		else {
 			$data = new WP_Error( 'exports-reports-failed-export', 'Report failed to export' );
@@ -193,6 +216,29 @@ else {
 		wp_send_json_error( $data->get_error_message() );
 	}
 	elseif ( !empty( $data ) ) {
+		if ( $download && ! empty( $data['export_file'] ) ) {
+		    do_action('wp_admin_ui_export_download');
+		    $file = $data['export_file'];
+		    $file = realpath( $file );
+		    if(!file_exists($file)) {
+				wp_send_json_error( 'Report failed to export' );
+		    }
+		    // required for IE, otherwise Content-disposition is ignored
+		    if(ini_get('zlib.output_compression'))
+		        ini_set('zlib.output_compression','Off');
+		    header("Pragma: public"); // required
+		    header("Expires: 0");
+		    header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+		    header("Cache-Control: private",false); // required for certain browsers
+		    header("Content-Type: application/force-download");
+		    header("Content-Disposition: attachment; filename=\"".basename($file)."\";" );
+		    header("Content-Transfer-Encoding: binary");
+		    header("Content-Length: ".filesize($file));
+		    flush();
+		    readfile("$file");
+		    exit();
+		}
+
 		wp_send_json_success( $data );
 	}
 	else {

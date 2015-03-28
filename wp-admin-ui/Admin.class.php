@@ -1,4 +1,8 @@
 <?php
+if ( ! defined( 'WP_ADMIN_UI_EXPORT_DIR' ) ) {
+	define( 'WP_ADMIN_UI_EXPORT_DIR', WP_CONTENT_DIR . '/exports' );
+}
+
 global $wpdb;
 if(!is_object($wpdb))
 {
@@ -13,7 +17,7 @@ if(!is_object($wpdb))
 if(isset($_GET['download']) && !isset($_GET['page']) && is_user_logged_in() && isset($_GET['_wpnonce']) && false !== wp_verify_nonce($_GET['_wpnonce'], 'wp-admin-ui-export'))
 {
     do_action('wp_admin_ui_export_download');
-    $file = WP_CONTENT_DIR.'/exports/'.str_replace('/','',$_GET['export']);
+    $file = WP_ADMIN_UI_EXPORT_DIR.'/'.str_replace(array('/','..'),'',$_GET['export']);
     $file = realpath( $file );
     if(!isset($_GET['export'])||empty($_GET['export'])||!file_exists($file))
         die('File not found.');
@@ -111,7 +115,6 @@ class WP_Admin_UI
     var $related = array();
 
     // export related
-    var $export_dir = false;
     var $exported_file = false;
     var $export_url = false;
     var $export_type = false;
@@ -122,7 +125,6 @@ class WP_Admin_UI
         do_action('wp_admin_ui_pre_init',$options);
         $options = $this->do_hook('options',$options);
         $this->base_url = plugins_url( 'Admin.class.php', __FILE__  );
-        $this->export_dir = WP_CONTENT_DIR.'/exports';
         $this->export_url = $this->base_url.'?download=1&_wpnonce='.wp_create_nonce('wp-admin-ui-export').'&export=';
         $this->assets_url = str_replace('/Admin.class.php','',$this->base_url).'/assets';
         if(false!==$this->get_var('id'))
@@ -1146,26 +1148,26 @@ class WP_Admin_UI
             return call_user_func( $this->custom['export'],$this);
         if(empty($this->full_data))
             $this->get_data(true);
-        $dir = dirname($this->export_dir);
-        if(!file_exists($this->export_dir))
+        $dir = dirname(WP_ADMIN_UI_EXPORT_DIR);
+        if(!file_exists(WP_ADMIN_UI_EXPORT_DIR))
         {
-            if(!$wp_filesystem->is_writable($dir)||!($dir = $wp_filesystem->mkdir($this->export_dir)))
+            if(!$wp_filesystem->is_writable($dir)||!($dir = $wp_filesystem->mkdir(WP_ADMIN_UI_EXPORT_DIR)))
             {
-                $this->error("<strong>Error:</strong> Your export directory (<strong>$this->export_dir</strong>) did not exist and couldn&#8217;t be created by the web server. Check the directory permissions and try again.");
+                $this->error("<strong>Error:</strong> Your export directory (<strong>" . WP_ADMIN_UI_EXPORT_DIR . "</strong>) did not exist and couldn&#8217;t be created by the web server. Check the directory permissions and try again.");
                 return false;
             }
         }
-        if(!$wp_filesystem->is_writable($this->export_dir))
+        if(!$wp_filesystem->is_writable(WP_ADMIN_UI_EXPORT_DIR))
         {
-            $this->error("<strong>Error:</strong> Your export directory (<strong>$this->export_dir</strong>) needs to be writable for this plugin to work. Double-check it and try again.");
+            $this->error("<strong>Error:</strong> Your export directory (<strong>" . WP_ADMIN_UI_EXPORT_DIR . "</strong>) needs to be writable for this plugin to work. Double-check it and try again.");
             return false;
         }
         if(isset($_GET['remove_export']))
         {
-            $this->do_hook('pre_remove_export',$this->export_dir.'/'.str_replace('/','',$_GET['remove_export']));
-            if($wp_filesystem->exists($this->export_dir.'/'.str_replace('/','',$_GET['remove_export'])))
+            $this->do_hook('pre_remove_export',WP_ADMIN_UI_EXPORT_DIR.'/'.str_replace('/','',$_GET['remove_export']));
+            if($wp_filesystem->exists(WP_ADMIN_UI_EXPORT_DIR.'/'.str_replace('/','',$_GET['remove_export'])))
             {
-                $remove = @unlink($this->export_dir.'/'.str_replace('/','',$_GET['remove_export']));
+                $remove = @unlink(WP_ADMIN_UI_EXPORT_DIR.'/'.str_replace('/','',$_GET['remove_export']));
                 if($remove)
                 {
                     $this->do_hook('post_remove_export',$_GET['remove_export'],true);
@@ -1175,7 +1177,7 @@ class WP_Admin_UI
                 else
                 {
                     $this->do_hook('post_remove_export',$_GET['remove_export'],false);
-                    $this->error("<strong>Error:</strong> Your export directory (<strong>$this->export_dir</strong>) needs to be writable for this plugin to work. Double-check it and try again.");
+                    $this->error("<strong>Error:</strong> Your export directory (<strong>" . WP_ADMIN_UI_EXPORT_DIR . "</strong>) needs to be writable for this plugin to work. Double-check it and try again.");
                     return false;
                 }
             }
@@ -1190,7 +1192,8 @@ class WP_Admin_UI
             if($this->export_type=='csv')
             {
                 $export_file = str_replace('-','_',sanitize_title($this->items)).'_'.date_i18n('m-d-Y_H-i-s').'_'.wp_generate_password(5,false).'.csv';
-                $fp = fopen($this->export_dir.'/'.$export_file,'a+');
+	            $export_file = apply_filters( 'wp_admin_ui_export_file', $export_file, 'csv', $this->export_type, $this );
+                $fp = fopen(WP_ADMIN_UI_EXPORT_DIR.'/'.$export_file,'a+');
                 $head = array();
                 $first = true;
                 foreach($this->export_columns as $key=>$attributes)
@@ -1234,7 +1237,8 @@ class WP_Admin_UI
             elseif($this->export_type=='tsv')
             {
                 $export_file = str_replace('-','_',sanitize_title($this->items)).'_'.date_i18n('m-d-Y_H-i-s').'_'.wp_generate_password(5,false).'.tsv';
-                $fp = fopen($this->export_dir.'/'.$export_file,'a+');
+	            $export_file = apply_filters( 'wp_admin_ui_export_file', $export_file, 'tsv', $this->export_type, $this->items, $this );
+                $fp = fopen(WP_ADMIN_UI_EXPORT_DIR.'/'.$export_file,'a+');
                 $head = array();
                 $first = true;
                 foreach($this->export_columns as $key=>$attributes)
@@ -1278,7 +1282,8 @@ class WP_Admin_UI
             elseif($this->export_type=='pipe')
             {
                 $export_file = str_replace('-','_',sanitize_title($this->items)).'_'.date_i18n('m-d-Y_H-i-s').'_'.wp_generate_password(5,false).'.txt';
-                $fp = fopen($this->export_dir.'/'.$export_file,'a+');
+	            $export_file = apply_filters( 'wp_admin_ui_export_file', $export_file, 'txt', $this->export_type, $this->items, $this );
+                $fp = fopen(WP_ADMIN_UI_EXPORT_DIR.'/'.$export_file,'a+');
                 $head = array();
                 $first = true;
                 foreach($this->export_columns as $key=>$attributes)
@@ -1322,7 +1327,8 @@ class WP_Admin_UI
             elseif($this->export_type=='custom')
             {
                 $export_file = str_replace('-','_',sanitize_title($this->items)).'_'.date_i18n('m-d-Y_H-i-s').'_'.wp_generate_password(5,false).'.txt';
-                $fp = fopen($this->export_dir.'/'.$export_file,'a+');
+	            $export_file = apply_filters( 'wp_admin_ui_export_file', $export_file, 'txt', $this->export_type, $this->items, $this );
+                $fp = fopen(WP_ADMIN_UI_EXPORT_DIR.'/'.$export_file,'a+');
                 $head = array();
                 $first = true;
                 foreach($this->export_columns as $key=>$attributes)
@@ -1366,7 +1372,8 @@ class WP_Admin_UI
             elseif($this->export_type=='xml')
             {
                 $export_file = str_replace('-','_',sanitize_title($this->items)).'_'.date_i18n('m-d-Y_H-i-s').'_'.wp_generate_password(5,false).'.xml';
-                $fp = fopen($this->export_dir.'/'.$export_file,'a+');
+	            $export_file = apply_filters( 'wp_admin_ui_export_file', $export_file, 'xml', $this->export_type, $this->items, $this );
+                $fp = fopen(WP_ADMIN_UI_EXPORT_DIR.'/'.$export_file,'a+');
                 $head = '<'.'?'.'xml version="1.0" encoding="'.get_bloginfo('charset').'" '.'?'.'>'."\r\n<items count=\"".count($this->full_data)."\">\r\n";
                 $head = substr($head,0,-1);
                 fwrite($fp,$head);
@@ -1398,7 +1405,8 @@ class WP_Admin_UI
             elseif($this->export_type=='json')
             {
                 $export_file = str_replace('-','_',sanitize_title($this->items)).'_'.date_i18n('m-d-Y_H-i-s').'_'.wp_generate_password(5,false).'.json';
-                $fp = fopen($this->export_dir.'/'.$export_file,'a+');
+	            $export_file = apply_filters( 'wp_admin_ui_export_file', $export_file, 'json', $this->export_type, $this->items, $this );
+                $fp = fopen(WP_ADMIN_UI_EXPORT_DIR.'/'.$export_file,'a+');
                 $data = array('items'=>array('count'=>count($this->full_data),'item'=>array()));
                 foreach($this->full_data as $item)
                 {
@@ -1450,6 +1458,8 @@ class WP_Admin_UI
         $row = $this->do_hook('get_row',$row,$id);
         if(!empty($row))
             $this->row = $row;
+
+	    return $row;
     }
     function get_data ($full=false)
     {
@@ -1793,7 +1803,7 @@ class WP_Admin_UI
         if (current_user_can('manage_options') && isset($_GET['debug']) && 1 == $_GET['debug'])
             echo "<textarea cols='130' rows='30'>$sql</textarea>";
         if(false!==$this->default_none&&false===$this->search_query&&false===$full&&empty($wheresql)&&empty($havingsql))
-            return;
+            return false;
         $results = $wpdb->get_results($sql,ARRAY_A);
         if (current_user_can('manage_options') && isset($_GET['debug']) && 1 == $_GET['debug'])
             $wpdb->show_errors = true;
@@ -1821,14 +1831,17 @@ class WP_Admin_UI
         }
         if(empty($this->columns))
             $this->catch_columns($full);
-        if($full)
-            return;
+        if($full) {
+	        return $results;
+        }
         if (false !== $this->sql_count)
             $wpdb->query($sql_count);
         $total = @current($wpdb->get_col("SELECT FOUND_ROWS()"));
         $total = $this->do_hook('get_data_total',$total,$full);
         if(is_numeric($total))
             $this->total = $total;
+
+        return $results;
     }
     function manage ($reorder=0)
     {

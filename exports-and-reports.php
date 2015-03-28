@@ -13,7 +13,14 @@ define( 'EXPORTS_REPORTS_TBL', $wpdb->prefix . 'exportsreports_' );
 define( 'EXPORTS_REPORTS_VERSION', '063' );
 define( 'EXPORTS_REPORTS_URL', plugin_dir_url( __FILE__ ) );
 define( 'EXPORTS_REPORTS_DIR', plugin_dir_path( __FILE__ ) );
-define( 'EXPORTS_REPORTS_EXPORT_DIR', WP_CONTENT_DIR . '/exports' );
+
+if ( ! defined( 'WP_ADMIN_UI_EXPORT_URL' ) ) {
+	define( 'WP_ADMIN_UI_EXPORT_URL', WP_CONTENT_URL . '/exports' );
+}
+
+if ( ! defined( 'WP_ADMIN_UI_EXPORT_DIR' ) ) {
+	define( 'WP_ADMIN_UI_EXPORT_DIR', WP_CONTENT_DIR . '/exports' );
+}
 
 add_action( 'admin_init', 'exports_reports_init' );
 add_action( 'admin_menu', 'exports_reports_menu' );
@@ -77,7 +84,6 @@ function exports_reports_init() {
 			$wpdb->query( "ALTER TABLE " . EXPORTS_REPORTS_TBL . "reports ADD COLUMN `disabled` int(1) NOT NULL AFTER `group`" );
 			$wpdb->query( "ALTER TABLE " . EXPORTS_REPORTS_TBL . "reports ADD COLUMN `role_access` MEDIUMTEXT NOT NULL AFTER `disable_export`" );
 			$wpdb->query( "ALTER TABLE " . EXPORTS_REPORTS_TBL . "reports ADD COLUMN `weight` int(10) NOT NULL AFTER `role_access`" );
-			exports_reports_schedule_cleanup();
 		}
 		if ( $version < 42 ) {
 			$wpdb->query( "ALTER TABLE " . EXPORTS_REPORTS_TBL . "reports ADD COLUMN `default_none` int(1) NOT NULL AFTER `disable_export`" );
@@ -92,6 +98,8 @@ function exports_reports_init() {
 		}
 		delete_option( 'exports_reports_version' );
 		add_option( 'exports_reports_version', EXPORTS_REPORTS_VERSION );
+
+		exports_reports_schedule_cleanup();
 	}
 	// thx gravity forms, great way of integration with members!
 	if ( function_exists( 'members_get_capabilities' ) ) {
@@ -187,32 +195,37 @@ function exports_reports_menu() {
 	}
 }
 
+/**
+ * Override the export filename
+ *
+ * @param string $export_file Export file name (example: export-file-name.csv)
+ * @param string $export_type Export type (csv/tsv/json/etc)
+ * @param WP_Admin_UI $wp_admin_ui WP Admin UI object to get out any other reference data
+ *
+ * @return string New export file name
+ */
 function exports_reports_settings() {
 	if(!empty($_POST['cronjob_token']))
-		update_option('exports_reports_token',$_POST['cronjob_token']);
+		update_option('exports_reports_token',sanitize_title($_POST['cronjob_token']));
 
+	$api_url = EXPORTS_REPORTS_URL . 'api.php?report=YOUR_REPORT_ID%s&token=' . get_option( 'exports_reports_token' );
 	?>
 	<div class="wrap">
 		<div id="icon-edit-pages" class="icon32" style="background-position:0 0;background-image:url(<?php echo EXPORTS_REPORTS_URL; ?>assets/icons/32.png);">
 			<br /></div>
 		<h2>Exports and Reports - Settings</h2>
 		<?php
-		if ( isset( $_POST[ 'reset' ] ) ) {
+		if ( isset( $_POST[ 'clear' ] ) || isset( $_POST[ 'reset' ] ) ) {
 			exports_reports_cleanup( true );
 			?>
 			<div id="message" class="updated fade">
 				<p>Your Exports directory has been cleaned up and all export files have been removed.</p></div>
-			<?php
+		<?php
+		}
+		if ( isset( $_POST[ 'reset' ] ) ) {
 			exports_reports_reset();
 			?>
 			<div id="message" class="updated fade"><p>Your Settings have been reset.</p></div>
-		<?php
-		}
-		if ( isset( $_POST[ 'clear' ] ) ) {
-			exports_reports_cleanup( true );
-			?>
-			<div id="message" class="updated fade">
-				<p>Your Exports directory has been cleaned up and all export files have been removed.</p></div>
 		<?php
 		}
 		?>
@@ -224,7 +237,7 @@ function exports_reports_settings() {
 					<th scope="row"><label for="clear">Clear Exports Directory</label></th>
 					<td>
 						<input name="clear" type="submit" id="clear" value=" Clear Now " />
-						<span class="description">This will remove all files from your Exports directory - <?php echo WP_CONTENT_URL; ?>/exports/</span>
+						<span class="description">This will remove all files from your Exports directory - <?php echo esc_html( str_replace( ABSPATH, '', WP_ADMIN_UI_EXPORT_DIR ) ); ?></span>
 					</td>
 				</tr>
 				<tr valign="top">
@@ -233,17 +246,26 @@ function exports_reports_settings() {
 						<input name="cronjob_token" type="text" id="cronjob_token" size="50" value="<?php echo esc_attr( get_option( 'exports_reports_token' ) ); ?>" /><br />
 						<span class="description">
 							Make sure this token is secure and that no one else gets this -- this key allows you to Export your report from a Cronjob on your server, by accessing the URL, or for the JSON API. You can change it anytime as needed.<br /><br />
-							<label for="cronjob_url" style="font-style:normal;"><strong>URL to Cronjob:</strong></label><br /><input type="text" id="cronjob_url" style="width:100%;" value="<?php echo EXPORTS_REPORTS_URL; ?>api.php?report=YOUR_REPORT_ID&export_type=YOUR_EXPORT_TYPE&token=<?php echo get_option( 'exports_reports_token' ); ?>" /><br />
-							<label for="jsonapi_url" style="font-style:normal;"><strong>URL to JSON API (paginated):</strong></label><br /><input type="text" id="jsonapi_url" style="width:100%;" value="<?php echo EXPORTS_REPORTS_URL; ?>api.php?report=YOUR_REPORT_ID&pg=PAGE_NUMBER&action=json&token=<?php echo get_option( 'exports_reports_token' ); ?>" /><br />
-							<label for="jsonapi_url2" style="font-style:normal;"><strong>URL to JSON API (full data):</strong></label><br /><input type="text" id="jsonapi_url2" style="width:100%;" value="<?php echo EXPORTS_REPORTS_URL; ?>api.php?report=YOUR_REPORT_ID&full=1&action=json&token=<?php echo get_option( 'exports_reports_token' ); ?>" />
+
+							<label for="export_api_url1" style="font-style:normal;"><strong>URL to Export (useful for Cronjobs):</strong></label><br />
+							<input type="text" id="export_api_url1" style="width:100%;" value="<?php echo esc_url( sprintf( $api_url, '&export_type=YOUR_EXPORT_TYPE' ) ); ?>" /><br />
+
+							<label for="export_api_url2" style="font-style:normal;"><strong>URL to JSON API (paginated):</strong></label><br />
+							<input type="text" id="export_api_url2" style="width:100%;" value="<?php echo esc_url( sprintf( $api_url, '&pg=PAGE_NUMBER&action=json' ) ); ?>" /><br />
+
+							<label for="export_api_url3" style="font-style:normal;"><strong>URL to JSON API (full data):</strong></label><br />
+							<input type="text" id="export_api_url3" style="width:100%;" value="<?php echo esc_url( sprintf( $api_url, '&full=1&action=json' ) ); ?>" />
+
+							<label for="export_api_url4" style="font-style:normal;"><strong>URL to Export and then Download File:</strong></label><br />
+							<input type="text" id="export_api_url4" style="width:100%;" value="<?php echo esc_url( sprintf( $api_url, '&download=1&export_type=YOUR_EXPORT_TYPE' ) ); ?>" /><br />
 						</span>
 					</td>
 				</tr>
 				<tr valign="top">
-					<th scope="row"><label for="reset">Reset Settings</label></th>
+					<th scope="row"><label for="reset">Reset All Settings</label></th>
 					<td>
 						<input name="reset" type="submit" id="reset" value=" Reset Now " />
-						<span class="description">This will clear all groups / reports and remove all files from your Exports directory too - <?php echo WP_CONTENT_URL; ?>/exports/</span>
+						<span class="description">This will clear all groups / reports and remove all files from your Exports directory too - <?php echo esc_html( str_replace( ABSPATH, '', WP_ADMIN_UI_EXPORT_DIR ) ); ?></span>
 					</td>
 				</tr>
 				<!--
@@ -270,9 +292,11 @@ function exports_reports_groups() {
 		'name',
 		'disabled' => array( 'label' => 'Disabled', 'type' => 'bool' ),
 		'created' => array( 'label' => 'Date Created', 'type' => 'datetime' ),
-		'updated' => array( 'label' => 'Last Modified', 'type' => 'datetime' )
+		'updated' => array( 'label' => 'Last Modified', 'type' => 'datetime' ),
+		'id' => array( 'label' => 'Group ID', 'type' => 'number' )
 	);
 	$form_columns = $columns;
+	unset($form_columns['id']);
 	$roles = exports_reports_get_roles();
 	$form_columns[ 'role_access' ] = array(
 		'label' => 'WP Roles with Access',
@@ -319,12 +343,14 @@ function exports_reports_reports() {
 		),
 		'disabled' => array( 'label' => 'Disabled', 'type' => 'bool' ),
 		'created' => array( 'label' => 'Date Created', 'type' => 'datetime' ),
-		'updated' => array( 'label' => 'Last Modified', 'type' => 'datetime' )
+		'updated' => array( 'label' => 'Last Modified', 'type' => 'datetime' ),
+		'id' => array( 'label' => 'Report ID', 'type' => 'number' )
 	);
 	$columns[ 'created' ][ 'filter' ] = true;
 	$columns[ 'created' ][ 'filter_label' ] = 'Lifespan (created / modified)';
 	$columns[ 'created' ][ 'date_ongoing' ] = 'updated';
 	$form_columns = $columns;
+	unset($form_columns['id']);
 	$form_columns[ 'disabled' ][ 'label' ] = 'Disabled?';
 	$form_columns[ 'disable_export' ] = array( 'label' => 'Disable Export?', 'type' => 'bool' );
 	$form_columns[ 'default_none' ] = array(
@@ -953,6 +979,9 @@ function exports_reports_view( $group_id = false ) {
 		}
 	}
 	$options[ 'report_id' ] = $current_report;
+
+	$options = apply_filters( 'exports_reports_report_options', $options, $current_report );
+
 	$admin = new WP_Admin_UI( $options );
 	if ( 1 < count( $selectable_reports ) ) {
 		?>
@@ -1097,22 +1126,48 @@ function exports_reports_schedule_cleanup() {
 	return wp_schedule_event( $timestamp, $recurrence, 'exports_reports_cleanup', array() );
 }
 
-function exports_reports_cleanup( $total = false ) {
+function exports_reports_cleanup( $full = false ) {
 
 	global $wpdb;
-	$purge_age = 1; // day(s) in age to purge
-	$where = '';
-	if ( false === $total ) {
-		$where = " WHERE `created` < DATE_ADD(NOW(), INTERVAL -{$purge_age} DAY)";
-	}
-	$cleanup = $wpdb->get_results( "SELECT * FROM " . EXPORTS_REPORTS_TBL . "log" . $where );
-	if ( false !== $cleanup && !empty( $cleanup ) ) {
-		foreach ( $cleanup as $export ) {
-			@unlink( EXPORTS_REPORTS_EXPORT_DIR . '/' . $export->filename );
-			$wpdb->query( $wpdb->prepare( "DELETE FROM " . EXPORTS_REPORTS_TBL . "log WHERE `id`=%d", array( $export->id ) ) );
-		}
 
-		return true;
+	if ( $full ) {
+		$wpdb->query( "TRUNCATE " . EXPORTS_REPORTS_TBL . "log" );
+
+		global $wp_filesystem;
+
+		$directory = WP_ADMIN_UI_EXPORT_DIR;
+
+		if ( $dir = opendir( $directory ) ) {
+			while ( false !== ( $file = readdir( $dir ) ) ) {
+				if ( in_array( $file, array( '.', '..' ) ) ) {
+					continue;
+				}
+
+				$file_path = $directory . DIRECTORY_SEPARATOR . $file;
+
+				if ( $wp_filesystem->is_file( $file_path ) ) {
+					$wp_filesystem->delete( $file_path );
+				}
+				elseif ( $wp_filesystem->is_dir( $file_path ) ) {
+					$this->delete_files_in_directory( $file_path );
+				}
+			}
+
+			closedir( $dir );
+		}
+	} else {
+		$purge_age = 1; // day(s) in age to purge
+		$where     = " WHERE `created` < DATE_ADD(NOW(), INTERVAL -{$purge_age} DAY)";
+		$cleanup   = $wpdb->get_results( "SELECT * FROM " . EXPORTS_REPORTS_TBL . "log" . $where );
+
+		if ( false !== $cleanup && ! empty( $cleanup ) ) {
+			foreach ( $cleanup as $export ) {
+				@unlink( WP_ADMIN_UI_EXPORT_DIR . '/' . str_replace( array( '/', '..' ), '', $export->filename ) );
+				$wpdb->query( $wpdb->prepare( "DELETE FROM " . EXPORTS_REPORTS_TBL . "log WHERE `id`=%d", array( $export->id ) ) );
+			}
+
+			return true;
+		}
 	}
 
 	return false;

@@ -2,9 +2,9 @@
 Contributors: sc0ttkclark
 Donate link: http://scottkclark.com/
 Tags: exports, reports, reporting, exporting, csv, tab, xml, json
-Requires at least: 3.0
+Requires at least: 3.5
 Tested up to: 4.1.1
-Stable tag: 0.6.3
+Stable tag: 0.6.4
 
 Define custom exports / reports for users, based off of any custom MySQL SELECT query you define.
 
@@ -73,6 +73,13 @@ Scott Kingsley Clark from SKC Development -- Scott specializes in WordPress and 
 * Get paginated / full data from a report in JSON format
 
 == Changelog ==
+
+= 0.6.4 =
+* Added: New constant to change the exports directory (WP_ADMIN_UI_EXPORT_DIR / WP_ADMIN_UI_EXPORT_URL)
+* Added: New filter to change the exported filename (wp_admin_ui_export_file, filter is passed filename and export type)
+* Added: Ability to use the API to export and then download the file (previously only JSON was available about file)
+* Added: New filter to override the WP_Admin_UI options array (exports_reports_report_options, filter is passed an array of options)
+* Fixed: JSON API for downloading data (full or paginated) now returns data properly, previously wasn't returning the actual data
 
 = 0.6.3 =
 * Security fix for orderby handling
