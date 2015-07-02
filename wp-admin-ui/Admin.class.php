@@ -1,41 +1,41 @@
 <?php
-if ( ! defined( 'WP_ADMIN_UI_EXPORT_DIR' ) ) {
-	define( 'WP_ADMIN_UI_EXPORT_DIR', WP_CONTENT_DIR . '/exports' );
+global $wpdb;
+
+if ( ! is_object( $wpdb ) ) {
+	wp_die( 'Access denied' );
 }
 
-global $wpdb;
-if(!is_object($wpdb))
-{
-    ob_start();
-    if(file_exists(realpath('../../../../wp-load.php')))
-        require_once(realpath('../../../../wp-load.php'));
-    else
-        require_once(realpath('../../../wp-load.php'));
-    ob_end_clean();
-}
 // FOR EXPORTS ONLY
-if(isset($_GET['download']) && !isset($_GET['page']) && is_user_logged_in() && isset($_GET['_wpnonce']) && false !== wp_verify_nonce($_GET['_wpnonce'], 'wp-admin-ui-export'))
-{
-    do_action('wp_admin_ui_export_download');
-    $file = WP_ADMIN_UI_EXPORT_DIR.'/'.str_replace(array('/','..'),'',$_GET['export']);
-    $file = realpath( $file );
-    if(!isset($_GET['export'])||empty($_GET['export'])||!file_exists($file))
-        die('File not found.');
-    // required for IE, otherwise Content-disposition is ignored
-    if(ini_get('zlib.output_compression'))
-        ini_set('zlib.output_compression','Off');
-    header("Pragma: public"); // required
-    header("Expires: 0");
-    header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
-    header("Cache-Control: private",false); // required for certain browsers
-    header("Content-Type: application/force-download");
-    header("Content-Disposition: attachment; filename=\"".basename($file)."\";" );
-    header("Content-Transfer-Encoding: binary");
-    header("Content-Length: ".filesize($file));
-    flush();
-    readfile("$file");
-    exit();
+if ( isset( $_GET['download'] ) && isset( $_GET['_wpnonce'] ) && false !== wp_verify_nonce( $_GET['_wpnonce'], 'wp-admin-ui-export' ) ) {
+	do_action( 'wp_admin_ui_export_download' );
+
+	$file = WP_ADMIN_UI_EXPORT_DIR . '/' . str_replace( array( '/', '..' ), '', $_GET['export'] );
+	$file = realpath( $file );
+
+	if ( ! isset( $_GET['export'] ) || empty( $_GET['export'] ) || ! file_exists( $file ) ) {
+		wp_die( 'File not found.' );
+	}
+
+	// required for IE, otherwise Content-disposition is ignored
+	if ( ini_get( 'zlib.output_compression' ) ) {
+		ini_set( 'zlib.output_compression', 'Off' );
+	}
+
+	header( "Pragma: public" ); // required
+	header( "Expires: 0" );
+	header( "Cache-Control: must-revalidate, post-check=0, pre-check=0" );
+	header( "Cache-Control: private", false ); // required for certain browsers
+	header( "Content-Type: application/force-download" );
+	header( "Content-Disposition: attachment; filename=\"" . basename( $file ) . "\";" );
+	header( "Content-Transfer-Encoding: binary" );
+	header( "Content-Length: " . filesize( $file ) );
+
+	flush();
+	readfile( "$file" );
+
+	exit();
 }
+
 /**
  * Admin UI class for WordPress plugins
  *
@@ -49,7 +49,7 @@ if(isset($_GET['download']) && !isset($_GET['page']) && is_user_logged_in() && i
  *
  * @package Admin UI for Plugins
  *
- * @version 1.9.3
+ * @version 1.9.5
  * @author Scott Kingsley Clark
  * @link http://scottkclark.com/
  *
@@ -125,7 +125,7 @@ class WP_Admin_UI
         do_action('wp_admin_ui_pre_init',$options);
         $options = $this->do_hook('options',$options);
         $this->base_url = plugins_url( 'Admin.class.php', __FILE__  );
-        $this->export_url = $this->base_url.'?download=1&_wpnonce='.wp_create_nonce('wp-admin-ui-export').'&export=';
+        $this->export_url = admin_url( 'admin-ajax.php' ) . '?action=wp_admin_ui_export&download=1&_wpnonce='.wp_create_nonce('wp-admin-ui-export').'&export=';
         $this->assets_url = str_replace('/Admin.class.php','',$this->base_url).'/assets';
         if(false!==$this->get_var('id'))
             $this->id = sanitize_text_field( $_GET['id'] );
